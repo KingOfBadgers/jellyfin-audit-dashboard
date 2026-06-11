@@ -1,0 +1,18 @@
+version: "3.8"
+
+services:
+  jellyfin-audit:
+    build: .
+    ports:
+      - "8098:3000"
+    worker:
+  build: .
+  command: npm run scan-worker
+  environment:
+    - JELLYFIN_URL=http://your-jellyfin:8096
+    - JELLYFIN_API_KEY=your_key
+    - JELLYFIN_USER_ID=your_user
+  volumes:
+    - ./data:/app/data
+  
+      
