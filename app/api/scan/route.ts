@@ -7,10 +7,88 @@ let running = false;
 
 /**
  * =========================================================
- * GET = full scan (blocking)
+ * JELLYFIN AUDIT SCAN ROUTE
+ * =========================================================
+ *
+ * PURPOSE
+ * -------
+ * Performs full library audit scans and writes results
+ * into the local cache layer.
+ *
+ * CHANGE LOG
+ * =========================================================
+ *
+ * 2026-06-11
+ *
+ * REASON:
+ * Jellyfin is returning BoxSet items despite
+ * IncludeItemTypes=Movie being specified.
+ *
+ * EVIDENCE:
+ * Example item:
+ *
+ * Name: All In The Family Collection
+ * Type: BoxSet
+ * IsFolder: true
+ *
+ * FIX:
+ * Added defensive movie-only filtering before
+ * buildMissingIndex() executes.
+ *
+ * FUTURE ARCHITECTURE NOTE:
+ * -------------------------
+ * This filtering intentionally lives in the scan layer
+ * rather than JellyfinClient.
+ *
+ * Reason:
+ * Future versions will support:
+ *
+ * - Movies
+ * - TV Shows
+ * - Collections
+ * - Library selection
+ *
+ * Keeping the client generic prevents future
+ * architectural rewrites.
+ *
+ * =========================================================
+ */
+
+/**
+ * =========================================================
+ * FILTER MOVIE ITEMS
+ * =========================================================
+ *
+ * Human / AI Notes:
+ * -----------------
+ * Jellyfin can occasionally return BoxSets or folders
+ * despite IncludeItemTypes=Movie.
+ *
+ * We therefore perform a local deterministic filter.
+ */
+function filterMovieItems(items: any[]) {
+  const filtered = items.filter((item) => {
+    return (
+      item.Type === "Movie" &&
+      item.IsFolder !== true
+    );
+  });
+
+  console.log(
+    `[SCAN] Filtered ${items.length} items -> ${filtered.length} movie items`
+  );
+
+  return filtered;
+}
+
+/**
+ * =========================================================
+ * GET = FULL SCAN (BLOCKING)
  * =========================================================
  */
 export async function GET() {
+  console.log("[SCAN][GET] Starting scan");
+
   const start = Date.now();
 
   const client = new JellyfinClient(
@@ -22,11 +100,19 @@ export async function GET() {
     process.env.JELLYFIN_USER_ID!
   );
 
-  const { summary, groups } = buildMissingIndex(data.Items);
+  console.log(
+    `[SCAN][GET] Jellyfin returned ${data.Items.length} items`
+  );
+
+  const movieItems = filterMovieItems(data.Items);
+
+  const { summary, groups } = buildMissingIndex(
+    movieItems
+  );
 
   const payload = {
     generatedAt: new Date().toISOString(),
-    movieCount: data.Items.length,
+    movieCount: movieItems.length,
     scanDurationMs: Date.now() - start,
 
     summary: {
@@ -39,6 +125,10 @@ export async function GET() {
 
   await writeAuditCache(payload);
 
+  console.log(
+    `[SCAN][GET] Scan complete (${payload.movieCount} movies)`
+  );
+
   return NextResponse.json({
     ok: true,
     generatedAt: payload.generatedAt,
@@ -49,17 +139,26 @@ export async function GET() {
 
 /**
  * =========================================================
- * POST = async guarded scan trigger
+ * POST = ASYNC GUARDED SCAN TRIGGER
  * =========================================================
  */
 export async function POST() {
   if (running) {
-    return NextResponse.json({ ok: false, running: true });
+    console.log(
+      "[SCAN][POST] Scan already running"
+    );
+
+    return NextResponse.json({
+      ok: false,
+      running: true,
+    });
   }
 
   running = true;
 
   try {
+    console.log("[SCAN][POST] Starting scan");
+
     const start = Date.now();
 
     const client = new JellyfinClient(
@@ -71,11 +170,21 @@ export async function POST() {
       process.env.JELLYFIN_USER_ID!
     );
 
-    const { summary, groups } = buildMissingIndex(data.Items);
+    console.log(
+      `[SCAN][POST] Jellyfin returned ${data.Items.length} items`
+    );
+
+    const movieItems = filterMovieItems(
+      data.Items
+    );
+
+    const { summary, groups } = buildMissingIndex(
+      movieItems
+    );
 
     const payload = {
       generatedAt: new Date().toISOString(),
-      movieCount: data.Items.length,
+      movieCount: movieItems.length,
       scanDurationMs: Date.now() - start,
 
       summary: {
@@ -88,6 +197,10 @@ export async function POST() {
 
     await writeAuditCache(payload);
 
+    console.log(
+      `[SCAN][POST] Scan complete (${payload.movieCount} movies)`
+    );
+
     return NextResponse.json({
       ok: true,
       mode: "POST_SCAN_COMPLETE",
@@ -97,5 +210,9 @@ export async function POST() {
     });
   } finally {
     running = false;
+
+    console.log(
+      "[SCAN][POST] Scan lock released"
+    );
   }
 }
