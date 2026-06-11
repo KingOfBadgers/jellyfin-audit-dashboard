@@ -1,36 +1,122 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎬 Jellyfin Audit Dashboard
 
-## Getting Started
+A visual audit tool for Jellyfin libraries that scans media assets and highlights missing artwork, metadata, and library health issues.
 
-First, run the development server:
+---
+
+## 🚀 Features
+
+- Full Jellyfin library scan
+- Missing artwork detection:
+  - Primary posters
+  - Logos
+  - Thumbnails
+  - Banners
+  - Discs
+  - Backdrops (bucketed)
+- Netflix-style drilldown UI
+- Visual dashboard overview
+- Cached scan results for fast browsing
+- Drilldown navigation per issue type
+
+---
+
+## 📸 UI Overview
+
+- Dashboard → high-level library health metrics
+- Drilldowns → Netflix-style rows of affected items
+- Search + sort within each category
+- Fast cached loading after scan
+
+---
+
+## 🧠 How It Works
+
+1. `/api/scan` pulls full Jellyfin library
+2. `buildMissingIndex()` analyses image coverage
+3. Results are stored in `/data/` cache files
+4. `/api/cache` serves summary stats
+5. `/api/list` serves drilldown groups
+6. Frontend renders dashboard + drilldowns
+
+---
+
+## ⚙️ Setup
+
+1. Clone repo
 
 ```bash
+git clone https://github.com/YOUR_USERNAME/jellyfin-audit-dashboard.git
+cd jellyfin-audit-dashboard
+
+
+2. Install dependencies
+npm install
+
+3. Configure environment
+
+Create .env.local:
+
+JELLYFIN_URL=http://your-jellyfin-server:8096
+JELLYFIN_API_KEY=your_api_key
+JELLYFIN_USER_ID=your_user_id
+
+3. Configure environment
+
+Create .env.local:
+
+JELLYFIN_URL=http://your-jellyfin-server:8096
+JELLYFIN_API_KEY=your_api_key
+JELLYFIN_USER_ID=your_user_id
+
+4. Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+http://localhost:3000/dashboard
+🔄 Running a Scan
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Trigger a full scan:
 
-## Learn More
+curl http://localhost:3000/api/scan
 
-To learn more about Next.js, take a look at the following resources:
+Or POST:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+curl -X POST http://localhost:3000/api/scan
+📊 API Endpoints
+Endpoint	Description
+/api/scan	Runs full Jellyfin scan
+/api/cache	Returns summary stats
+/api/list?type=	Returns drilldown items
+📦 Build
+npm run build
+npm run start
+🧹 Data Handling
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+All scan results are stored locally in:
 
-## Deploy on Vercel
+/data
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This folder is gitignored by design.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+🛡️ Security
+
+Never commit:
+
+Jellyfin API keys
+.env files
+/data cache outputs
+📜 License
+
+MIT License
+
+🧭 Roadmap (v2)
+Docker support
+Background scan worker (overnight mode)
+Live progress UI
+Thumbnail prefetch optimisation
+Enhanced metadata graphing
+❤️ Purpose
+
+Built to give Jellyfin libraries a visual health layer — turning metadata completeness into something observable and actionable.
