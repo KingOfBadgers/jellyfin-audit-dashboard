@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { JellyfinClient } from "@/lib/jellyfin/client";
 import { buildMissingIndex } from "@/lib/compute/missing";
 import { writeAuditCache } from "@/lib/cache/auditCache";
 
@@ -7,75 +6,62 @@ let running = false;
 
 /**
  * =========================================================
- * JELLYFIN AUDIT SCAN ROUTE
- * =========================================================
- *
- * PURPOSE
- * -------
- * Performs full library audit scans and writes results
- * into the local cache layer.
- *
- * CHANGE LOG
- * =========================================================
- *
- * 2026-06-11
- *
- * REASON:
- * Jellyfin is returning BoxSet items despite
- * IncludeItemTypes=Movie being specified.
- *
- * EVIDENCE:
- * Example item:
- *
- * Name: All In The Family Collection
- * Type: BoxSet
- * IsFolder: true
- *
- * FIX:
- * Added defensive movie-only filtering before
- * buildMissingIndex() executes.
- *
- * FUTURE ARCHITECTURE NOTE:
- * -------------------------
- * This filtering intentionally lives in the scan layer
- * rather than JellyfinClient.
- *
- * Reason:
- * Future versions will support:
- *
- * - Movies
- * - TV Shows
- * - Collections
- * - Library selection
- *
- * Keeping the client generic prevents future
- * architectural rewrites.
- *
+ * SCAN ROUTE (CONTRACT V2 — SOURCE OF TRUTH RESOLVED SERVER-SIDE)
  * =========================================================
  */
+
+type LibraryType = "movie" | "tv" | "collection" | "legacy";
+
+/**
+ * Resolve library type from Jellyfin Views (SERVER TRUTH)
+ */
+async function resolveLibraryTypeFromId(
+  baseUrl: string,
+  apiKey: string,
+  userId: string,
+  libraryId: string
+): Promise<LibraryType> {
+  const res = await fetch(`${baseUrl}/Users/${userId}/Views`, {
+    headers: {
+      "X-Emby-Token": apiKey,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) return "legacy";
+
+  const data = await res.json();
+
+  const lib = (data?.Items || []).find(
+    (i: any) => i.Id === libraryId
+  );
+
+  const type = (lib?.CollectionType || "").toLowerCase();
+
+  switch (type) {
+    case "movies":
+      return "movie";
+    case "tvshows":
+      return "tv";
+    case "boxsets":
+      return "collection";
+    default:
+      return "legacy";
+  }
+}
 
 /**
  * =========================================================
- * FILTER MOVIE ITEMS
+ * FILTER SAFETY LAYER
  * =========================================================
- *
- * Human / AI Notes:
- * -----------------
- * Jellyfin can occasionally return BoxSets or folders
- * despite IncludeItemTypes=Movie.
- *
- * We therefore perform a local deterministic filter.
  */
 function filterMovieItems(items: any[]) {
-  const filtered = items.filter((item) => {
-    return (
-      item.Type === "Movie" &&
-      item.IsFolder !== true
-    );
-  });
+  const filtered = items.filter(
+    (item) => item.Type === "Movie" && item.IsFolder !== true
+  );
 
   console.log(
-    `[SCAN] Filtered ${items.length} items -> ${filtered.length} movie items`
+    `[SCAN] Filtered ${items.length} -> ${filtered.length} movies`
   );
 
   return filtered;
@@ -83,136 +69,195 @@ function filterMovieItems(items: any[]) {
 
 /**
  * =========================================================
- * GET = FULL SCAN (BLOCKING)
+ * QUERY BUILDER
  * =========================================================
  */
-export async function GET() {
+function buildQuery(
+  baseUrl: string,
+  userId: string,
+  libraryType: LibraryType,
+  libraryId: string
+) {
+  const base = `${baseUrl}/Users/${userId}/Items`;
+  const params = new URLSearchParams();
+
+  switch (libraryType) {
+    case "movie":
+      params.set("IncludeItemTypes", "Movie");
+      break;
+
+    case "tv":
+      params.set("IncludeItemTypes", "Series");
+      break;
+
+    case "collection":
+      params.set("IncludeItemTypes", "BoxSet");
+      break;
+
+    default:
+      params.set("IncludeItemTypes", "Movie");
+  }
+
+  params.set("Recursive", "true");
+  params.set("ParentId", libraryId);
+
+  return `${base}?${params.toString()}`;
+}
+
+/**
+ * =========================================================
+ * GET (DEBUG ONLY — LEGACY SUPPORT)
+ * =========================================================
+ */
+export async function GET(req: Request) {
   console.log("[SCAN][GET] Starting scan");
 
   const start = Date.now();
 
-  const client = new JellyfinClient(
-    process.env.JELLYFIN_URL!,
-    process.env.JELLYFIN_API_KEY!
+  const { searchParams } = new URL(req.url);
+  const libraryId = searchParams.get("libraryId");
+
+  const baseUrl = process.env.JELLYFIN_URL!;
+  const apiKey = process.env.JELLYFIN_API_KEY!;
+  const userId = process.env.JELLYFIN_USER_ID!;
+
+  let libraryType: LibraryType = "legacy";
+
+  if (libraryId) {
+    libraryType = await resolveLibraryTypeFromId(
+      baseUrl,
+      apiKey,
+      userId,
+      libraryId
+    );
+  }
+
+  const url = buildQuery(
+    baseUrl,
+    userId,
+    libraryType,
+    libraryId || ""
   );
 
-  const data = await client.getMovies(
-    process.env.JELLYFIN_USER_ID!
-  );
+  console.log("[SCAN][GET] Query:", url);
 
-  console.log(
-    `[SCAN][GET] Jellyfin returned ${data.Items.length} items`
-  );
+  const res = await fetch(url, {
+    headers: {
+      "X-Emby-Token": apiKey,
+      "Content-Type": "application/json",
+    },
+  });
 
-  const movieItems = filterMovieItems(data.Items);
+  const data = await res.json();
 
-  const { summary, groups } = buildMissingIndex(
-    movieItems
-  );
+  const items =
+    libraryType === "movie" || libraryType === "legacy"
+      ? filterMovieItems(data.Items)
+      : data.Items;
+
+  const { summary, groups } = buildMissingIndex(items);
 
   const payload = {
     generatedAt: new Date().toISOString(),
-    movieCount: movieItems.length,
+    movieCount: items.length,
     scanDurationMs: Date.now() - start,
-
     summary: {
       ...summary,
       backdropBuckets: summary.backdropBuckets,
     },
-
     groups,
   };
 
-  await writeAuditCache(payload);
-
-  console.log(
-    `[SCAN][GET] Scan complete (${payload.movieCount} movies)`
-  );
+  await writeAuditCache(payload, libraryId || "legacy");
 
   return NextResponse.json({
     ok: true,
-    generatedAt: payload.generatedAt,
-    movieCount: payload.movieCount,
-    scanDurationMs: payload.scanDurationMs,
+    libraryId,
+    libraryType,
+    movieCount: items.length,
   });
 }
 
 /**
  * =========================================================
- * POST = ASYNC GUARDED SCAN TRIGGER
+ * POST (PRODUCTION SCAN — CLEAN CONTRACT)
  * =========================================================
  */
-export async function POST() {
+export async function POST(req: Request) {
   if (running) {
-    console.log(
-      "[SCAN][POST] Scan already running"
-    );
-
-    return NextResponse.json({
-      ok: false,
-      running: true,
-    });
+    return NextResponse.json({ ok: false, running: true });
   }
 
   running = true;
 
   try {
-    console.log("[SCAN][POST] Starting scan");
-
     const start = Date.now();
 
-    const client = new JellyfinClient(
-      process.env.JELLYFIN_URL!,
-      process.env.JELLYFIN_API_KEY!
+    const body = await req.json().catch(() => ({}));
+    const libraryId = body?.libraryId;
+
+    if (!libraryId) {
+      return NextResponse.json(
+        { error: "libraryId required" },
+        { status: 400 }
+      );
+    }
+
+    const baseUrl = process.env.JELLYFIN_URL!;
+    const apiKey = process.env.JELLYFIN_API_KEY!;
+    const userId = process.env.JELLYFIN_USER_ID!;
+
+    const libraryType = await resolveLibraryTypeFromId(
+      baseUrl,
+      apiKey,
+      userId,
+      libraryId
     );
 
-    const data = await client.getMovies(
-      process.env.JELLYFIN_USER_ID!
+    const url = buildQuery(
+      baseUrl,
+      userId,
+      libraryType,
+      libraryId
     );
 
-    console.log(
-      `[SCAN][POST] Jellyfin returned ${data.Items.length} items`
-    );
+    const res = await fetch(url, {
+      headers: {
+        "X-Emby-Token": apiKey,
+        "Content-Type": "application/json",
+      },
+    });
 
-    const movieItems = filterMovieItems(
-      data.Items
-    );
+    const data = await res.json();
 
-    const { summary, groups } = buildMissingIndex(
-      movieItems
-    );
+    const items =
+      libraryType === "movie" || libraryType === "legacy"
+        ? filterMovieItems(data.Items)
+        : data.Items;
+
+    const { summary, groups } = buildMissingIndex(items);
 
     const payload = {
       generatedAt: new Date().toISOString(),
-      movieCount: movieItems.length,
+      movieCount: items.length,
       scanDurationMs: Date.now() - start,
-
       summary: {
         ...summary,
         backdropBuckets: summary.backdropBuckets,
       },
-
       groups,
     };
 
-    await writeAuditCache(payload);
-
-    console.log(
-      `[SCAN][POST] Scan complete (${payload.movieCount} movies)`
-    );
+    // FIX: library-scoped cache write (critical)
+    await writeAuditCache(payload, libraryId);
 
     return NextResponse.json({
       ok: true,
-      mode: "POST_SCAN_COMPLETE",
-      generatedAt: payload.generatedAt,
-      movieCount: payload.movieCount,
-      scanDurationMs: payload.scanDurationMs,
+      libraryId,
+      libraryType,
+      movieCount: items.length,
     });
   } finally {
     running = false;
-
-    console.log(
-      "[SCAN][POST] Scan lock released"
-    );
   }
 }
