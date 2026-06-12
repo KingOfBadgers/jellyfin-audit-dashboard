@@ -2,22 +2,20 @@
 
 /**
  * =========================================================
- * DRILLDOWN — NETFLIX ROW SYSTEM (V2)
+ * DRILLDOWN — NETFLIX ROW SYSTEM (V3 FIXED)
  * =========================================================
+ * DATE: 2026-06-12
+ * TIME: 08:30
  *
- * CHANGE LOG:
- * - 2026-06-10: Replaced grid with Netflix-style row carousels
- * - 2026-06-10: Introduced horizontal scroll rows
- * - 2026-06-10: Chunked dataset into visual rows
- * - 2026-06-10: Maintains API compatibility (no backend changes)
- * - 2026-06-11: Added home navigation icon (dashboard return)
- *
- * DESIGN GOAL:
- * - Emulate Netflix browse behaviour:
- *   vertical rows + horizontal scroll per category chunk
+ * FIX:
+ * - libraryId now propagated into API calls
+ * - fixes 400 errors from /api/list
+ * - restores full dataset loading
+ * =========================================================
  */
 
 import { use, useEffect, useMemo, useState } from "react";
+import { buildPrimaryImageUrl } from "@/lib/jellyfin/image";
 
 type MovieItem = {
   id: string;
@@ -33,31 +31,48 @@ export default function DrilldownPage({ params }: any) {
 
   /**
    * =========================================================
+   * LIBRARY CONTEXT (SOURCE OF TRUTH)
+   * =========================================================
+   */
+  const [libraryId, setLibraryId] = useState<string>("legacy");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lib = params.get("libraryId") || "legacy";
+
+    console.log("[DRILLDOWN] Library selected:", lib);
+
+    setLibraryId(lib);
+  }, []);
+
+  /**
+   * =========================================================
    * FETCH
    * =========================================================
    */
   useEffect(() => {
-    console.log("[NETFLIX ROW] Loading:", resolvedParams.type);
+    console.log("[NETFLIX ROW] Loading:", resolvedParams.type, libraryId);
+
+    if (!libraryId) return;
 
     setLoading(true);
 
-    fetch(`/api/list?type=${resolvedParams.type}`)
+    fetch(
+      `/api/list?type=${resolvedParams.type}&libraryId=${libraryId}`
+    )
       .then((r) => r.json())
       .then((data) => {
         console.log("[NETFLIX ROW] Items:", data?.items?.length || 0);
         setItems(data.items || []);
       })
       .finally(() => setLoading(false));
-  }, [resolvedParams.type]);
+  }, [resolvedParams.type, libraryId]);
 
   /**
-   * =========================================================
    * FILTER
-   * =========================================================
    */
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-
     if (!q) return items;
 
     return items.filter((m) =>
@@ -66,9 +81,7 @@ export default function DrilldownPage({ params }: any) {
   }, [items, search]);
 
   /**
-   * =========================================================
-   * CHUNK INTO ROWS (Netflix structure)
-   * =========================================================
+   * ROW CHUNKING
    */
   const rows = useMemo(() => {
     const chunkSize = 12;
@@ -101,11 +114,7 @@ export default function DrilldownPage({ params }: any) {
     >
       {/* HEADER */}
       <div style={{ marginBottom: 18 }}>
-
-        {/* TOP ROW: HOME + TITLE */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          
-          {/* HOME BUTTON */}
           <a
             href="/dashboard"
             style={{
@@ -120,25 +129,15 @@ export default function DrilldownPage({ params }: any) {
               textDecoration: "none",
               flexShrink: 0,
             }}
-            title="Back to dashboard"
           >
-            <img
-              src="/home.png"
-              alt="Home"
-              style={{
-                width: 64,
-                height: 64,
-              }}
-            />
+            <img src="/home.png" alt="Home" style={{ width: 20, height: 20 }} />
           </a>
 
-          {/* TITLE */}
           <h1 style={{ fontSize: 26, margin: 0 }}>
             {resolvedParams.type}
           </h1>
         </div>
 
-        {/* META */}
         <div style={{ opacity: 0.6, marginTop: 6 }}>
           {filtered.length} titles
         </div>
@@ -160,22 +159,14 @@ export default function DrilldownPage({ params }: any) {
         }}
       />
 
-      {/* ROW SYSTEM */}
+      {/* ROWS */}
       <div style={{ display: "flex", flexDirection: "column", gap: 26 }}>
         {rows.map((row, rowIndex) => (
           <div key={rowIndex}>
-            {/* ROW LABEL */}
-            <div
-              style={{
-                fontSize: 12,
-                opacity: 0.5,
-                marginBottom: 8,
-              }}
-            >
+            <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 8 }}>
               ROW {rowIndex + 1}
             </div>
 
-            {/* HORIZONTAL SCROLLER */}
             <div
               style={{
                 display: "flex",
@@ -185,11 +176,9 @@ export default function DrilldownPage({ params }: any) {
               }}
             >
               {row.map((movie) => {
-                const baseUrl = process.env.NEXT_PUBLIC_JELLYFIN_URL;
+                const imageUrl = buildPrimaryImageUrl(movie.id);
 
-                const imageUrl = baseUrl
-                  ? `${baseUrl}/Items/${movie.id}/Images/Primary`
-                  : "";
+                console.log("[URL]", imageUrl);
 
                 return (
                   <a
@@ -205,18 +194,8 @@ export default function DrilldownPage({ params }: any) {
                       textDecoration: "none",
                       color: "#fff",
                       background: "#1a1a22",
-                      transition: "transform 0.18s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform =
-                        "scale(1.08)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform =
-                        "scale(1)";
                     }}
                   >
-                    {/* IMAGE LAYER */}
                     <div
                       style={{
                         position: "absolute",
@@ -227,7 +206,6 @@ export default function DrilldownPage({ params }: any) {
                       }}
                     />
 
-                    {/* GRADIENT */}
                     <div
                       style={{
                         position: "absolute",
@@ -237,7 +215,6 @@ export default function DrilldownPage({ params }: any) {
                       }}
                     />
 
-                    {/* TITLE */}
                     <div
                       style={{
                         position: "absolute",

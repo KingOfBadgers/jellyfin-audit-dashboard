@@ -2,17 +2,37 @@
 
 /**
  * =========================================================
- * DASHBOARD — BACKGROUND IMAGE LAYER (3A PASS)
+ * JELLYFIN AUDIT DASHBOARD (LIBRARY-AWARE + ARTWORK TILES)
  * =========================================================
  *
- * CHANGE LOG:
- * - 2026-06-11: Introduced per-tile background PNG system
- * - 2026-06-11: Mapped /public/dashboard assets to metrics
- * - 2026-06-11: Added overlay system for readability
+ * PURPOSE
+ * -------
+ * Library-aware dashboard displaying audit metrics and
+ * backdrop distribution using artwork-backed tiles.
  *
- * PURPOSE:
- * - Keep analytics intact
- * - Upgrade visual hierarchy to Netflix-style dashboard tiles
+ * CHANGE LOG
+ * =========================================================
+ *
+ * 2026-06-11
+ *
+ * REASON:
+ * Library-aware refactor accidentally removed the original
+ * artwork tile renderer and replaced it with plain cards.
+ *
+ * FIX:
+ * Restored:
+ * - Background artwork tiles
+ * - Overlay system
+ * - Hover scaling
+ * - Netflix-style presentation
+ *
+ * PRESERVED:
+ * - libraryId routing
+ * - library-aware cache loading
+ * - drilldown routing
+ * - backdrop distribution section
+ *
+ * =========================================================
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -31,24 +51,50 @@ export default function Dashboard() {
 
   /**
    * =========================================================
-   * FETCH CACHE
+   * LIBRARY CONTEXT
    * =========================================================
    */
-  useEffect(() => {
-    console.log("[DASHBOARD] Loading cache data");
+  const [libraryId, setLibraryId] = useState<string>("legacy");
 
-    fetch("/api/cache")
-      .then((r) => r.json())
-      .then((json) => {
-        console.log("[DASHBOARD] Cache loaded", json);
-        setData(json);
-      })
-      .catch((err) => console.error("[DASHBOARD] Cache error", err));
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    const lib = params.get("libraryId") || "legacy";
+
+    console.log("[DASHBOARD] Library selected:", lib);
+
+    setLibraryId(lib);
   }, []);
 
   /**
    * =========================================================
-   * TILE CONFIG (3A IMAGE MAPPING)
+   * FETCH LIBRARY CACHE
+   * =========================================================
+   */
+  useEffect(() => {
+    console.log(
+      "[DASHBOARD] Loading cache for library:",
+      libraryId
+    );
+
+    fetch(`/api/cache?libraryId=${libraryId}`)
+      .then((r) => r.json())
+      .then((json) => {
+        console.log("[DASHBOARD] Cache loaded", json);
+
+        setData(json);
+      })
+      .catch((err) => {
+        console.error(
+          "[DASHBOARD] Cache load failed",
+          err
+        );
+      });
+  }, [libraryId]);
+
+  /**
+   * =========================================================
+   * PRIMARY AUDIT TILES
    * =========================================================
    */
   const tiles = useMemo(() => {
@@ -59,43 +105,43 @@ export default function Dashboard() {
         id: "primaryMissing",
         title: "Primary Artwork",
         value: data.primaryMissing,
-        href: "/drilldown/primaryMissing",
+        href: `/drilldown/primaryMissing?libraryId=${libraryId}`,
         img: "/primary.png",
       },
       {
         id: "logoMissing",
         title: "Logos",
         value: data.logoMissing,
-        href: "/drilldown/logoMissing",
+        href: `/drilldown/logoMissing?libraryId=${libraryId}`,
         img: "/logo.png",
       },
       {
         id: "thumbMissing",
         title: "Thumbnails",
         value: data.thumbMissing,
-        href: "/drilldown/thumbMissing",
+        href: `/drilldown/thumbMissing?libraryId=${libraryId}`,
         img: "/thumb.png",
       },
       {
         id: "bannerMissing",
         title: "Banners",
         value: data.bannerMissing,
-        href: "/drilldown/bannerMissing",
+        href: `/drilldown/bannerMissing?libraryId=${libraryId}`,
         img: "/banner.png",
       },
       {
         id: "discMissing",
         title: "Discs",
         value: data.discMissing,
-        href: "/drilldown/discMissing",
+        href: `/drilldown/discMissing?libraryId=${libraryId}`,
         img: "/discs.png",
       },
     ];
-  }, [data]);
+  }, [data, libraryId]);
 
   /**
    * =========================================================
-   * BACKDROP TILES (STILL ANALYTICS ONLY)
+   * BACKDROP DISTRIBUTION TILES
    * =========================================================
    */
   const backdropTiles = useMemo(() => {
@@ -106,44 +152,54 @@ export default function Dashboard() {
         id: "backdrop_0",
         title: "0 Backdrops",
         value: data.backdropBuckets["0"] ?? 0,
-        href: "/drilldown/backdrop_0",
+        href: `/drilldown/backdrop_0?libraryId=${libraryId}`,
         img: "/backdrop-0.png",
       },
       {
         id: "backdrop_1_5",
         title: "1–5 Backdrops",
         value: data.backdropBuckets["1-5"] ?? 0,
-        href: "/drilldown/backdrop_1_5",
+        href: `/drilldown/backdrop_1_5?libraryId=${libraryId}`,
         img: "/backdrop1-5.png",
       },
       {
-              id: "backdrop_6_10",
-      title: "6–10 Backdrops",
-      value: data.backdropBuckets["6-10"] ?? 0,
-      href: "/drilldown/backdrop_6_10",
-      img: "/backdrop_6_10.png",
-    },
-    {
-      id: "backdrop_11_20",
-      title: "11–20 Backdrops",
-      value: data.backdropBuckets["11-20"] ?? 0,
-      href: "/drilldown/backdrop_11_20",
-      img: "/backdrop_11_20.png",
-    },
-    {
-      id: "backdrop_20_plus",
-      title: "20+ Backdrops",
-      value: data.backdropBuckets["20+"] ?? 0,
-      href: "/drilldown/backdrop_20_plus",
-      img: "/backdrop_20_plus.png",
-    },
+        id: "backdrop_6_10",
+        title: "6–10 Backdrops",
+        value: data.backdropBuckets["6-10"] ?? 0,
+        href: `/drilldown/backdrop_6_10?libraryId=${libraryId}`,
+        img: "/backdrop_6_10.png",
+      },
+      {
+        id: "backdrop_11_20",
+        title: "11–20 Backdrops",
+        value: data.backdropBuckets["11-20"] ?? 0,
+        href: `/drilldown/backdrop_11_20?libraryId=${libraryId}`,
+        img: "/backdrop_11_20.png",
+      },
+      {
+        id: "backdrop_20_plus",
+        title: "20+ Backdrops",
+        value: data.backdropBuckets["20+"] ?? 0,
+        href: `/drilldown/backdrop_20_plus?libraryId=${libraryId}`,
+        img: "/backdrop_20_plus.png",
+      },
     ];
-  }, [data]);
+  }, [data, libraryId]);
 
+  /**
+   * =========================================================
+   * LOADING STATE
+   * =========================================================
+   */
   if (!data) {
     return (
-      <div style={{ padding: 20, color: "#aaa" }}>
-        Loading dashboard…
+      <div
+        style={{
+          padding: 20,
+          color: "#aaa",
+        }}
+      >
+        Loading dashboard...
       </div>
     );
   }
@@ -158,13 +214,22 @@ export default function Dashboard() {
         fontFamily: "sans-serif",
       }}
     >
-      {/* HEADER */}
+      {/* =====================================================
+           HEADER
+      ===================================================== */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 28 }}>Jellyfin Audit</h1>
-        <p style={{ opacity: 0.6 }}>Visual library health overview</p>
+        <h1 style={{ fontSize: 28 }}>
+          Jellyfin Audit
+        </h1>
+
+        <p style={{ opacity: 0.6 }}>
+          Library: {libraryId}
+        </p>
       </div>
 
-      {/* MAIN GRID */}
+      {/* =====================================================
+           MAIN AUDIT GRID
+      ===================================================== */}
       <div
         style={{
           display: "grid",
@@ -190,13 +255,17 @@ export default function Dashboard() {
               transition: "all 0.18s ease",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "scale(1.04)";
+              e.currentTarget.style.transform =
+                "scale(1.04)";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.transform =
+                "scale(1)";
             }}
           >
-            {/* BACKGROUND IMAGE */}
+            {/* =============================================
+                 BACKGROUND IMAGE
+            ============================================= */}
             <div
               style={{
                 position: "absolute",
@@ -204,11 +273,14 @@ export default function Dashboard() {
                 backgroundImage: `url(${tile.img})`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
-                filter: "brightness(0.9) contrast(1.1)",
+                filter:
+                  "brightness(0.9) contrast(1.1)",
               }}
             />
 
-            {/* DARK OVERLAY */}
+            {/* =============================================
+                 OVERLAY
+            ============================================= */}
             <div
               style={{
                 position: "absolute",
@@ -218,22 +290,39 @@ export default function Dashboard() {
               }}
             />
 
-            {/* CONTENT */}
+            {/* =============================================
+                 CONTENT
+            ============================================= */}
             <div
               style={{
                 position: "relative",
                 padding: 12,
               }}
             >
-              <div style={{ fontSize: 11, opacity: 0.7 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  opacity: 0.7,
+                }}
+              >
                 {tile.id.toUpperCase()}
               </div>
 
-              <div style={{ fontSize: 14, marginTop: 6 }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  marginTop: 6,
+                }}
+              >
                 {tile.title}
               </div>
 
-              <div style={{ fontSize: 26, marginTop: 10 }}>
+              <div
+                style={{
+                  fontSize: 26,
+                  marginTop: 10,
+                }}
+              >
                 {tile.value}
               </div>
             </div>
@@ -241,9 +330,13 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* BACKDROP SECTION */}
+      {/* =====================================================
+           BACKDROP DISTRIBUTION
+      ===================================================== */}
       <div>
-        <h2 style={{ marginBottom: 12 }}>Backdrop Distribution</h2>
+        <h2 style={{ marginBottom: 12 }}>
+          Backdrop Distribution
+        </h2>
 
         <div
           style={{
@@ -253,37 +346,63 @@ export default function Dashboard() {
             gap: 12,
           }}
         >
-          {backdropTiles.map((b) => (
+          {backdropTiles.map((tile) => (
             <a
-              key={b.id}
-              href={b.href}
+              key={tile.id}
+              href={tile.href}
               style={{
                 position: "relative",
-                padding: 14,
-                borderRadius: 10,
                 overflow: "hidden",
-                border: "1px solid #222",
+                borderRadius: 10,
                 textDecoration: "none",
                 color: "#fff",
+                border: "1px solid #222",
+                padding: 14,
               }}
             >
+              {/* =========================================
+                   BACKGROUND IMAGE
+              ========================================= */}
               <div
                 style={{
                   position: "absolute",
                   inset: 0,
-                  backgroundImage: `url(${b.img})`,
+                  backgroundImage: `url(${tile.img})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                   opacity: 0.35,
                 }}
               />
 
-              <div style={{ position: "relative" }}>
-                <div style={{ fontSize: 12, opacity: 0.6 }}>
+              <div
+                style={{
+                  position: "relative",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    opacity: 0.6,
+                  }}
+                >
                   BACKDROPS
                 </div>
-                <div style={{ fontSize: 14 }}>{b.title}</div>
-                <div style={{ fontSize: 22 }}>{b.value}</div>
+
+                <div
+                  style={{
+                    fontSize: 14,
+                  }}
+                >
+                  {tile.title}
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 22,
+                  }}
+                >
+                  {tile.value}
+                </div>
               </div>
             </a>
           ))}
