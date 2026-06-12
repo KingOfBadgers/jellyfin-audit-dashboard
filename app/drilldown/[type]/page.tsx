@@ -1,21 +1,9 @@
 "use client";
 
-/**
- * =========================================================
- * DRILLDOWN — NETFLIX ROW SYSTEM (V3 FIXED)
- * =========================================================
- * DATE: 2026-06-12
- * TIME: 08:30
- *
- * FIX:
- * - libraryId now propagated into API calls
- * - fixes 400 errors from /api/list
- * - restores full dataset loading
- * =========================================================
- */
-
 import { use, useEffect, useMemo, useState } from "react";
 import { buildPrimaryImageUrl } from "@/lib/jellyfin/image";
+import { formatDrilldownLabel } from "@/lib/ui/labels";
+import Breadcrumbs from "@/components/Breadcrumbs"; // (assuming existing)
 
 type MovieItem = {
   id: string;
@@ -29,37 +17,27 @@ export default function DrilldownPage({ params }: any) {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  /**
-   * =========================================================
-   * LIBRARY CONTEXT (SOURCE OF TRUTH)
-   * =========================================================
-   */
   const [libraryId, setLibraryId] = useState<string>("legacy");
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const lib = params.get("libraryId") || "legacy";
+    const urlParams = new URLSearchParams(window.location.search);
+    const lib = urlParams.get("libraryId") || "legacy";
 
     console.log("[DRILLDOWN] Library selected:", lib);
-
     setLibraryId(lib);
   }, []);
 
   /**
    * =========================================================
-   * FETCH
+   * FETCH DATA
    * =========================================================
    */
   useEffect(() => {
-    console.log("[NETFLIX ROW] Loading:", resolvedParams.type, libraryId);
-
     if (!libraryId) return;
 
     setLoading(true);
 
-    fetch(
-      `/api/list?type=${resolvedParams.type}&libraryId=${libraryId}`
-    )
+    fetch(`/api/list?type=${resolvedParams.type}&libraryId=${libraryId}`)
       .then((r) => r.json())
       .then((data) => {
         console.log("[NETFLIX ROW] Items:", data?.items?.length || 0);
@@ -69,8 +47,18 @@ export default function DrilldownPage({ params }: any) {
   }, [resolvedParams.type, libraryId]);
 
   /**
-   * FILTER
+   * =========================================================
+   * VIEW MODEL (SINGLE SOURCE OF TRUTH)
+   * =========================================================
+   *
+   * CRITICAL FIX:
+   * We compute the label ONCE and reuse it everywhere.
+   * This prevents breadcrumb/title desync.
    */
+  const sectionLabel = useMemo(() => {
+    return formatDrilldownLabel(resolvedParams.type);
+  }, [resolvedParams.type]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return items;
@@ -80,9 +68,6 @@ export default function DrilldownPage({ params }: any) {
     );
   }, [items, search]);
 
-  /**
-   * ROW CHUNKING
-   */
   const rows = useMemo(() => {
     const chunkSize = 12;
     const result: MovieItem[][] = [];
@@ -103,17 +88,26 @@ export default function DrilldownPage({ params }: any) {
   }
 
   return (
-    <div
-      style={{
-        padding: 24,
-        background: "#0b0b0f",
-        minHeight: "100vh",
-        color: "#fff",
-        fontFamily: "sans-serif",
-      }}
-    >
+    <div style={{
+      padding: 24,
+      background: "#0b0b0f",
+      minHeight: "100vh",
+      color: "#fff",
+      fontFamily: "sans-serif",
+    }}>
+
       {/* HEADER */}
       <div style={{ marginBottom: 18 }}>
+
+        {/* BREADCRUMB RESTORED */}
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Dashboard", href: `/dashboard?libraryId=${libraryId}` },
+            { label: sectionLabel },
+          ]}
+        />
+
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <a
             href="/dashboard"
@@ -133,8 +127,9 @@ export default function DrilldownPage({ params }: any) {
             <img src="/home.png" alt="Home" style={{ width: 20, height: 20 }} />
           </a>
 
+          {/* TITLE = SAME SOURCE AS BREADCRUMB */}
           <h1 style={{ fontSize: 26, margin: 0 }}>
-            {resolvedParams.type}
+            {sectionLabel}
           </h1>
         </div>
 
@@ -167,18 +162,9 @@ export default function DrilldownPage({ params }: any) {
               ROW {rowIndex + 1}
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                gap: 12,
-                overflowX: "auto",
-                paddingBottom: 6,
-              }}
-            >
+            <div style={{ display: "flex", gap: 12, overflowX: "auto" }}>
               {row.map((movie) => {
                 const imageUrl = buildPrimaryImageUrl(movie.id);
-
-                console.log("[URL]", imageUrl);
 
                 return (
                   <a
@@ -191,8 +177,6 @@ export default function DrilldownPage({ params }: any) {
                       borderRadius: 10,
                       overflow: "hidden",
                       flex: "0 0 auto",
-                      textDecoration: "none",
-                      color: "#fff",
                       background: "#1a1a22",
                     }}
                   >
