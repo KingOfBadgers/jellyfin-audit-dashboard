@@ -1,39 +1,28 @@
-import cron from "node-cron";
-import { JellyfinClient } from "@/lib/jellyfin/client";
-import { buildMissingIndex } from "@/lib/compute/missing";
-import { writeAuditCache } from "@/lib/cache/auditCache";
+/**
+ * =========================================================
+ * JELLYFIN AUDIT — CRON DISABLED
+ * =========================================================
+ *
+ * DATE: 2026-06-12
+ * TIME: 09:40
+ *
+ * CHANGE:
+ * - Cron scan removed
+ *
+ * REASON:
+ * - Legacy global scan conflicted with library-scoped API scan
+ * - Caused cache overwrites and inconsistent dashboard state
+ *
+ * NEW SOURCE OF TRUTH:
+ * - /api/scan (library-scoped, deterministic)
+ * =========================================================
+ */
 
-async function runScan() {
-  console.log("[SCAN] Starting Jellyfin audit...");
+console.log("[SCAN][CRON] Disabled - using API-driven scan only");
 
-  const client = new JellyfinClient(
-    process.env.JELLYFIN_URL!,
-    process.env.JELLYFIN_API_KEY!
-  );
-
-  const data = await client.getMovies(
-    process.env.JELLYFIN_USER_ID!
-  );
-
-  const { summary, groups } = buildMissingIndex(
-    data.Items
-  );
-
-  const payload = {
-    generatedAt: new Date().toISOString(),
-    movieCount: data.Items.length,
-    scanDurationMs: Date.now(),
-    summary,
-    groups,
-  };
-
-  await writeAuditCache(payload);
-
-  console.log("[SCAN] Completed");
+/**
+ * No-op export to prevent accidental imports breaking runtime
+ */
+export function runCronScanDisabled() {
+  console.log("[SCAN][CRON] No-op");
 }
-
-// run at 03:00 AM every night
-cron.schedule("0 3 * * *", runScan);
-
-// also run once on startup
-runScan();
