@@ -2,21 +2,28 @@
 
 /**
  * =========================================================
- * JELLYFIN AUDIT DASHBOARD (LIBRARY-AWARE FIXED MODEL)
+ * JELLYFIN AUDIT DASHBOARD (AUTO BOOTSTRAP + BACKDROP UX LAYER)
  * =========================================================
  * DATE: 2026-06-12
- * TIME: 09:10
+ * TIME: 11:05
  *
- * FIXES:
- * - Restored full backdrop distribution tiles (ALL BUCKETS)
- * - Preserved library object model (no raw ID display)
- * - Ensured consistent cache + library resolution
+ * CHANGES:
+ * ---------------------------------------------------------
+ * ADDED:
+ * - Fullscreen backdrop image layer during loading/boot
+ * - Improves perceived performance during scan/bootstrap
+ *
+ * REASON:
+ * First-run scan can take time.
+ * Background visual keeps UI engaging while API loads.
  *
  * RULES:
- * - NEVER show raw library ID in UI
- * - KEEP internal ID usage for routing only
+ * - NO change to scan logic
+ * - NO change to cache contract
+ * - NO change to routing or tiles
  * =========================================================
  */
+
 import AppHeader from "@/components/AppHeader";
 import { useEffect, useState } from "react";
 
@@ -38,6 +45,8 @@ type Library = {
 export default function Dashboard() {
   const [data, setData] = useState<CacheData | null>(null);
   const [library, setLibrary] = useState<Library | null>(null);
+
+  const [status, setStatus] = useState("initialising");
 
   /**
    * =========================================================
@@ -63,6 +72,10 @@ export default function Dashboard() {
    * =========================================================
    */
   useEffect(() => {
+    if (!library?.id) return;
+
+    console.log("[DASHBOARD] Resolving library name...");
+
     fetch("/api/libraries")
       .then((r) => r.json())
       .then((data) => {
@@ -83,40 +96,135 @@ export default function Dashboard() {
       .catch((err) => {
         console.error("[DASHBOARD] Library resolve failed", err);
       });
-  }, []);
+  }, [library?.id]);
 
   /**
    * =========================================================
-   * FETCH CACHE
+   * CACHE + AUTO BOOTSTRAP
    * =========================================================
    */
   useEffect(() => {
     if (!library?.id) return;
 
-    console.log("[DASHBOARD] Loading cache:", library.id);
+    async function loadDashboard() {
+      try {
+        console.log("[DASHBOARD] Checking cache...");
+        setStatus("checking-cache");
 
-    fetch(`/api/cache?libraryId=${library.id}`)
-      .then((r) => r.json())
-      .then((json) => {
-        console.log("[DASHBOARD] Cache loaded", json);
-        setData(json);
-      })
-      .catch((err) => {
-        console.error("[DASHBOARD] Cache load failed", err);
-      });
+        const cacheRes = await fetch(
+          `/api/cache?libraryId=${library.id}`
+        );
+
+        const cacheJson = await cacheRes.json();
+
+        if (cacheJson.cacheExists !== false) {
+          console.log("[DASHBOARD] Cache found");
+
+          setData(cacheJson);
+          setStatus("ready");
+          return;
+        }
+
+        console.log("[DASHBOARD] Cache missing");
+        console.log("[DASHBOARD] Starting first scan...");
+
+        setStatus("scanning");
+
+        const scanRes = await fetch("/api/scan", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            libraryId: library.id,
+          }),
+        });
+
+        await scanRes.json();
+
+        console.log("[DASHBOARD] Reloading cache...");
+        setStatus("loading-results");
+
+        const newCacheRes = await fetch(
+          `/api/cache?libraryId=${library.id}`
+        );
+
+        const newCacheJson = await newCacheRes.json();
+
+        setData(newCacheJson);
+        setStatus("ready");
+
+        console.log("[DASHBOARD] Dashboard ready");
+      } catch (err) {
+        console.error("[DASHBOARD] Bootstrap failed", err);
+      }
+    }
+
+    loadDashboard();
   }, [library?.id]);
+
+  /**
+   * =========================================================
+   * BACKDROP LAYER STATE
+   * =========================================================
+   * Always visible until data is ready
+   */
+  const showBackdrop = !data || status !== "ready";
 
   if (!data || !library) {
     return (
-      <div style={{ padding: 20, color: "#aaa" }}>
-        Loading dashboard...
+      <div
+        style={{
+          minHeight: "100vh",
+          position: "relative",
+          overflow: "hidden",
+          fontFamily: "sans-serif",
+        }}
+      >
+        {/* BACKDROP IMAGE LAYER */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `url(/backdrop.png)`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            filter: "brightness(0.4) blur(2px)",
+            transform: "scale(1.05)",
+          }}
+        />
+
+        {/* DARK OVERLAY */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0.9))",
+          }}
+        />
+
+        {/* LOADING TEXT */}
+        <div
+          style={{
+            position: "relative",
+            zIndex: 2,
+            padding: 20,
+            color: "#fff",
+          }}
+        >
+          {status === "checking-cache" && "Checking library cache..."}
+          {status === "scanning" && "Scanning Jellyfin library..."}
+          {status === "loading-results" && "Loading audit results..."}
+          {!status && "Loading dashboard..."}
+        </div>
       </div>
     );
   }
 
   /**
    * =========================================================
-   * PRIMARY TILE DATA
+   * MAIN UI
    * =========================================================
    */
   const tiles = [
@@ -157,11 +265,6 @@ export default function Dashboard() {
     },
   ];
 
-  /**
-   * =========================================================
-   * BACKDROP DISTRIBUTION (RESTORED FULL SET)
-   * =========================================================
-   */
   const backdropTiles = [
     {
       id: "backdrop_0",
@@ -208,84 +311,55 @@ export default function Dashboard() {
         minHeight: "100vh",
         color: "#fff",
         fontFamily: "sans-serif",
+        position: "relative",
       }}
     >
-      <AppHeader
-  title="Jellyfin Audit"
-  breadcrumbs={[
-    { label: "Home", href: "/" },
-    { label: "Dashboard" },
-  ]}
-/>
-
-      {/* PRIMARY GRID */}
+      {/* BACKDROP LAYER (subtle behind content once ready) */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fill, minmax(200px, 1fr))",
-          gap: 16,
-          marginBottom: 40,
+          position: "fixed",
+          inset: 0,
+          backgroundImage: `url(/backdrop.png)`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          opacity: showBackdrop ? 0.25 : 0.12,
+          filter: "brightness(0.4)",
+          zIndex: 0,
+          pointerEvents: "none",
         }}
-      >
-        {tiles.map((tile) => (
-          <a
-            key={tile.id}
-            href={tile.href}
-            style={{
-              position: "relative",
-              borderRadius: 12,
-              overflow: "hidden",
-              textDecoration: "none",
-              color: "#fff",
-              height: 150,
-              border: "1px solid #222",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                backgroundImage: `url(${tile.img})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            />
+      />
 
-            <div style={{ position: "relative", padding: 12 }}>
-              <div style={{ fontSize: 14 }}>{tile.title}</div>
-              <div style={{ fontSize: 26 }}>{tile.value}</div>
-            </div>
-          </a>
-        ))}
-      </div>
+      <div style={{ position: "relative", zIndex: 1 }}>
+        <AppHeader
+          title="Jellyfin Audit"
+          breadcrumbs={[
+            { label: "Home", href: "/" },
+            { label: "Dashboard" },
+          ]}
+        />
 
-      {/* BACKDROP DISTRIBUTION */}
-      <div>
-        <h2 style={{ marginBottom: 12 }}>
-          Backdrop Distribution
-        </h2>
-
+        {/* PRIMARY GRID */}
         <div
           style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fill, minmax(180px, 1fr))",
-            gap: 12,
+              "repeat(auto-fill, minmax(200px, 1fr))",
+            gap: 16,
+            marginBottom: 40,
           }}
         >
-          {backdropTiles.map((tile) => (
+          {tiles.map((tile) => (
             <a
               key={tile.id}
               href={tile.href}
               style={{
                 position: "relative",
+                borderRadius: 12,
                 overflow: "hidden",
-                borderRadius: 10,
                 textDecoration: "none",
                 color: "#fff",
+                height: 150,
                 border: "1px solid #222",
-                padding: 14,
               }}
             >
               <div
@@ -295,19 +369,66 @@ export default function Dashboard() {
                   backgroundImage: `url(${tile.img})`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
-                  opacity: 0.35,
                 }}
               />
 
-              <div style={{ position: "relative" }}>
-                <div style={{ fontSize: 12, opacity: 0.6 }}>
-                  BACKDROPS
-                </div>
+              <div style={{ position: "relative", padding: 12 }}>
                 <div style={{ fontSize: 14 }}>{tile.title}</div>
-                <div style={{ fontSize: 22 }}>{tile.value}</div>
+                <div style={{ fontSize: 26 }}>{tile.value}</div>
               </div>
             </a>
           ))}
+        </div>
+
+        {/* BACKDROP DISTRIBUTION */}
+        <div>
+          <h2 style={{ marginBottom: 12 }}>
+            Backdrop Distribution
+          </h2>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(auto-fill, minmax(180px, 1fr))",
+              gap: 12,
+            }}
+          >
+            {backdropTiles.map((tile) => (
+              <a
+                key={tile.id}
+                href={tile.href}
+                style={{
+                  position: "relative",
+                  overflow: "hidden",
+                  borderRadius: 10,
+                  textDecoration: "none",
+                  color: "#fff",
+                  border: "1px solid #222",
+                  padding: 14,
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    backgroundImage: `url(${tile.img})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    opacity: 0.35,
+                  }}
+                />
+
+                <div style={{ position: "relative" }}>
+                  <div style={{ fontSize: 12, opacity: 0.6 }}>
+                    BACKDROPS
+                  </div>
+                  <div style={{ fontSize: 14 }}>{tile.title}</div>
+                  <div style={{ fontSize: 22 }}>{tile.value}</div>
+                </div>
+              </a>
+            ))}
+          </div>
         </div>
       </div>
     </div>
