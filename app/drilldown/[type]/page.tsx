@@ -5,6 +5,31 @@ import { buildPrimaryImageUrl } from "@/lib/jellyfin/image";
 import { formatDrilldownLabel } from "@/lib/ui/labels";
 import Breadcrumbs from "@/components/Breadcrumbs"; // (assuming existing)
 
+/**
+ * =========================================================
+ * JELLYFIN AUDIT — DRILLDOWN PAGE (LIBRARY CONTEXT FIX)
+ * =========================================================
+ * DATE: 2026-06-13
+ * TIME: 00:00
+ *
+ * FIX APPLIED:
+ * ---------------------------------------------------------
+ * - REMOVED unsafe default libraryId = "legacy"
+ * - PREVENTED early fetch before library context resolves
+ * - ELIMINATED dual-request race condition (legacy + real ID)
+ *
+ * REASON:
+ * Initial render was triggering an invalid "legacy" request
+ * before URL library context was resolved, causing duplicate
+ * API calls and incorrect result overwrites.
+ *
+ * RULES:
+ * - No change to API contract
+ * - No change to UI structure
+ * - Only fix request lifecycle correctness
+ * =========================================================
+ */
+
 type MovieItem = {
   id: string;
   title: string;
@@ -17,31 +42,67 @@ export default function DrilldownPage({ params }: any) {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const [libraryId, setLibraryId] = useState<string>("legacy");
+  /**
+   * =========================================================
+   * FIX: REMOVE LEGACY DEFAULT STATE
+   * =========================================================
+   * Before: "legacy" caused premature invalid API request.
+   * Now: null prevents any fetch until URL is resolved.
+   */
+  const [libraryId, setLibraryId] = useState<string | null>(null);
 
+  /**
+   * =========================================================
+   * RESOLVE LIBRARY FROM URL
+   * =========================================================
+   */
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const lib = urlParams.get("libraryId") || "legacy";
+    const lib = urlParams.get("libraryId");
 
-    console.log("[DRILLDOWN] Library selected:", lib);
+    console.log("[DRILLDOWN] Library selected (raw):", lib);
+
+    if (!lib) {
+      console.warn("[DRILLDOWN] Missing libraryId in URL");
+      setLibraryId(null);
+      return;
+    }
+
     setLibraryId(lib);
   }, []);
 
   /**
    * =========================================================
-   * FETCH DATA
+   * FETCH DATA (GUARDED — SINGLE SOURCE ONLY)
    * =========================================================
    */
   useEffect(() => {
-    if (!libraryId) return;
+    /**
+     * HARD GUARD:
+     * Prevent any request until libraryId is valid.
+     */
+    if (!libraryId) {
+      console.log("[DRILLDOWN] Waiting for libraryId...");
+      return;
+    }
 
     setLoading(true);
 
-    fetch(`/api/list?type=${resolvedParams.type}&libraryId=${libraryId}`)
+    console.log("[DRILLDOWN][FETCH] Request:", {
+      type: resolvedParams.type,
+      libraryId,
+    });
+
+    fetch(
+      `/api/list?type=${resolvedParams.type}&libraryId=${libraryId}`
+    )
       .then((r) => r.json())
       .then((data) => {
         console.log("[NETFLIX ROW] Items:", data?.items?.length || 0);
         setItems(data.items || []);
+      })
+      .catch((err) => {
+        console.error("[DRILLDOWN][FETCH] Failed:", err);
       })
       .finally(() => setLoading(false));
   }, [resolvedParams.type, libraryId]);
@@ -50,10 +111,6 @@ export default function DrilldownPage({ params }: any) {
    * =========================================================
    * VIEW MODEL (SINGLE SOURCE OF TRUTH)
    * =========================================================
-   *
-   * CRITICAL FIX:
-   * We compute the label ONCE and reuse it everywhere.
-   * This prevents breadcrumb/title desync.
    */
   const sectionLabel = useMemo(() => {
     return formatDrilldownLabel(resolvedParams.type);
@@ -79,38 +136,53 @@ export default function DrilldownPage({ params }: any) {
     return result;
   }, [filtered]);
 
-  if (loading) {
+  /**
+   * =========================================================
+   * LOADING STATE
+   * =========================================================
+   */
+  if (loading || !libraryId) {
     return (
-      <div style={{ padding: 20, color: "#aaa" }}>
+      <div
+        style={{
+          padding: 20,
+          color: "#aaa",
+          background: "#0b0b0f",
+          minHeight: "100vh",
+          fontFamily: "sans-serif",
+        }}
+      >
         Loading Netflix rows…
       </div>
     );
   }
 
   return (
-    <div style={{
-      padding: 24,
-      background: "#0b0b0f",
-      minHeight: "100vh",
-      color: "#fff",
-      fontFamily: "sans-serif",
-    }}>
-
+    <div
+      style={{
+        padding: 24,
+        background: "#0b0b0f",
+        minHeight: "100vh",
+        color: "#fff",
+        fontFamily: "sans-serif",
+      }}
+    >
       {/* HEADER */}
       <div style={{ marginBottom: 18 }}>
-
-        {/* BREADCRUMB RESTORED */}
         <Breadcrumbs
           items={[
             { label: "Home", href: "/" },
-            { label: "Dashboard", href: `/dashboard?libraryId=${libraryId}` },
+            {
+              label: "Dashboard",
+              href: `/dashboard?libraryId=${libraryId}`,
+            },
             { label: sectionLabel },
           ]}
         />
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <a
-            href="/dashboard"
+            href={`/dashboard?libraryId=${libraryId}`}
             style={{
               width: 34,
               height: 34,
@@ -124,10 +196,13 @@ export default function DrilldownPage({ params }: any) {
               flexShrink: 0,
             }}
           >
-            <img src="/home.png" alt="Home" style={{ width: 20, height: 20 }} />
+            <img
+              src="/home.png"
+              alt="Home"
+              style={{ width: 20, height: 20 }}
+            />
           </a>
 
-          {/* TITLE = SAME SOURCE AS BREADCRUMB */}
           <h1 style={{ fontSize: 26, margin: 0 }}>
             {sectionLabel}
           </h1>
