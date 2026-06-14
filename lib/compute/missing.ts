@@ -1,10 +1,58 @@
+/**
+ * =========================================================
+ * JELLYFIN AUDIT — MISSING INDEX BUILDER
+ * =========================================================
+ * DATE: 2026-06-14
+ * TIME: 00:00
+ *
+ * SPRINT 4A CHANGES:
+ * ---------------------------------------------------------
+ * ADDED:
+ * - boxMissing
+ * - boxRearMissing
+ * - artMissing
+ * - menuMissing
+ *
+ * DEBUG ADDED:
+ * - Asset probe logging for Box / BoxRear / Art / Menu
+ *
+ * REASON:
+ * Sprint 4 requires validation that additional Jellyfin
+ * artwork asset types exist consistently in scan payloads
+ * before exposing them via API/UI.
+ *
+ * RULES:
+ * - NO removal of existing functionality
+ * - Existing summary contract preserved
+ * - Existing groups preserved
+ * - New fields added only
+ * =========================================================
+ */
+
 export function buildMissingIndex(items: any[]) {
+  /**
+   * =========================================================
+   * SUMMARY COUNTERS
+   * =========================================================
+   * Existing counters preserved.
+   * Sprint 4 counters added below.
+   */
   const summary = {
     primaryMissing: 0,
     logoMissing: 0,
     thumbMissing: 0,
     bannerMissing: 0,
     discMissing: 0,
+
+    /**
+     * =====================================================
+     * SPRINT 4 ADDITIONS
+     * =====================================================
+     */
+    boxMissing: 0,
+    boxRearMissing: 0,
+    artMissing: 0,
+    menuMissing: 0,
 
     backdropBuckets: {
       "0": 0,
@@ -15,12 +63,30 @@ export function buildMissingIndex(items: any[]) {
     },
   };
 
+  /**
+   * =========================================================
+   * GROUP COLLECTIONS
+   * =========================================================
+   * Existing groups preserved.
+   * Sprint 4 groups added below.
+   */
   const groups: Record<string, any[]> = {
     primaryMissing: [],
     logoMissing: [],
     thumbMissing: [],
     bannerMissing: [],
     discMissing: [],
+
+    /**
+     * =====================================================
+     * SPRINT 4 ADDITIONS
+     * =====================================================
+     */
+    boxMissing: [],
+    boxRearMissing: [],
+    artMissing: [],
+    menuMissing: [],
+
     backdrop_0: [],
     backdrop_1_5: [],
     backdrop_6_10: [],
@@ -28,10 +94,42 @@ export function buildMissingIndex(items: any[]) {
     backdrop_20_plus: [],
   };
 
+  /**
+   * =========================================================
+   * MAIN ITEM LOOP
+   * =========================================================
+   */
   for (const item of items) {
     const img = item.ImageTags || {};
     const backdrops = item.BackdropImageTags?.length ?? 0;
 
+    /**
+     * =====================================================
+     * SPRINT 4 DEBUG PROBE
+     * =====================================================
+     * PURPOSE:
+     * Validate whether Jellyfin is returning these asset
+     * fields consistently.
+     *
+     * NOTE:
+     * Logging left intentionally verbose during Sprint 4A.
+     * Can be reduced later after validation completes.
+     * =====================================================
+     */
+    console.log("[MISSING][ASSET PROBE]", {
+      title: item.Name,
+      box: img.Box || null,
+      boxRear: img.BoxRear || null,
+      art: img.Art || null,
+      menu: img.Menu || null,
+    });
+
+
+    /**
+     * =====================================================
+     * EXISTING AUDIT RULES (UNCHANGED)
+     * =====================================================
+     */
     if (!img.Primary) {
       summary.primaryMissing++;
       groups.primaryMissing.push(item);
@@ -57,6 +155,48 @@ export function buildMissingIndex(items: any[]) {
       groups.discMissing.push(item);
     }
 
+    /**
+     * =====================================================
+     * SPRINT 4 AUDIT RULES
+     * =====================================================
+     * Pattern identical to existing missing checks.
+     * =====================================================
+     */
+
+    if (!img.Box) {
+      summary.boxMissing++;
+      groups.boxMissing.push(item);
+    }
+
+    if (!img.BoxRear) {
+      summary.boxRearMissing++;
+      groups.boxRearMissing.push(item);
+    }
+
+    if (!img.Art) {
+      summary.artMissing++;
+      groups.artMissing.push(item);
+    }
+
+    if (!img.Menu) {
+      summary.menuMissing++;
+      groups.menuMissing.push(item);
+    }
+
+    console.log("[MISSING][FULL ITEM STRUCTURE]");
+
+console.log("ImageTags:", item.ImageTags);
+
+console.log("ImageBlurHashes:", item.ImageBlurHashes);
+
+console.log("ImagePaths:", item.ImagePaths);
+
+console.log("BackdropImageTags:", item.BackdropImageTags);
+    /**
+     * =====================================================
+     * EXISTING BACKDROP BUCKET LOGIC (UNCHANGED)
+     * =====================================================
+     */
     if (backdrops === 0) {
       summary.backdropBuckets["0"]++;
       groups.backdrop_0.push(item);
@@ -75,5 +215,11 @@ export function buildMissingIndex(items: any[]) {
     }
   }
 
+  /**
+   * =========================================================
+   * FINAL RETURN CONTRACT
+   * =========================================================
+   * Existing contract preserved with additional fields.
+   */
   return { summary, groups };
 }

@@ -8,10 +8,16 @@ import { readAuditGroups } from "@/lib/cache/auditCache";
  * DATE: 2026-06-12
  * TIME: 08:15
  *
- * FIXES:
- * - Enforces libraryId propagation
- * - Removes silent fallback mismatch (legacy vs active library)
- * - Prevents empty drilldowns when dashboard is correct
+ * DEBUG PHASE ADDITION (SPRINT 4 INIT STEP):
+ * ---------------------------------------------------------
+ * - Added asset-level debug logging (box/back/art/menu)
+ * - NO contract changes
+ * - NO UI impact
+ * - ONLY observability layer added
+ *
+ * PURPOSE:
+ * Prove whether enriched asset fields exist in cached scan output
+ * before exposing them downstream.
  * =========================================================
  */
 
@@ -93,11 +99,39 @@ export async function GET(req: Request) {
     });
   }
 
+  /**
+   * =========================================================
+   * STEP 1 DEBUG: INSPECT RAW ITEM SHAPE
+   * =========================================================
+   * We log the first few items ONLY to avoid noise overload.
+   */
+  console.log("[LIST][DEBUG] sample raw item shape:");
+  console.log(JSON.stringify(raw?.[0], null, 2));
+
+  /**
+   * =========================================================
+   * STEP 2 DEBUG: CHECK FOR NEW SPRING 4 FIELDS
+   * =========================================================
+   * These will likely be undefined at this stage — that's expected.
+   */
+  const debugSample = raw.slice(0, 5).map((i: any) => ({
+    id: i.Id,
+    title: i.Name,
+    box: i?.assets?.box,
+    back: i?.assets?.back,
+    art: i?.assets?.art,
+    menu: i?.assets?.menu,
+  }));
+
+  console.log("[LIST][DEBUG] asset probe (first 5 items):");
+  console.log(JSON.stringify(debugSample, null, 2));
+
   const items = raw.map((i: any) => ({
     id: i.Id,
     title: i.Name,
     backdropCount: i.BackdropImageTags?.length ?? 0,
   }));
+
   console.log("[LIST][DEBUG] reading library:", libraryId);
   console.log("[LIST] Returning:", items.length);
 
