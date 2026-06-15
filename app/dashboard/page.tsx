@@ -40,11 +40,26 @@ import AppHeader from "@/components/AppHeader";
 import { useEffect, useState } from "react";
 
 type CacheData = {
+  /**
+   * CORE ASSETS
+   */
   primaryMissing: number;
   logoMissing: number;
   thumbMissing: number;
   bannerMissing: number;
+  artMissing: number;
+
+  /**
+   * PHYSICAL MEDIA ASSETS
+   */
   discMissing: number;
+  boxMissing: number;
+  boxRearMissing: number;
+  menuMissing: number;
+
+  /**
+   * BACKDROPS
+   */
   backdropBuckets?: Record<string, number>;
 };
 
@@ -141,6 +156,20 @@ export default function Dashboard() {
         );
 
         const cacheJson = await cacheRes.json();
+        
+        /**
+ * =========================================================
+ * SPRINT 4B DEBUG
+ * Verify new asset fields reached dashboard
+ * =========================================================
+ */
+console.log("[DASHBOARD][SPRINT4] Full cache payload:");
+console.log({
+  artMissing: cacheJson.artMissing,
+  boxMissing: cacheJson.boxMissing,
+  boxRearMissing: cacheJson.boxRearMissing,
+  menuMissing: cacheJson.menuMissing,
+});
 
         if (cacheJson.cacheExists !== false) {
           console.log("[DASHBOARD] Cache found");
@@ -155,10 +184,10 @@ export default function Dashboard() {
             console.log("[DASHBOARD][UI] phase: ready");
             setUiPhase("ready");
           }, 700);
-
+          
           return;
         }
-
+        
         console.log("[DASHBOARD] Cache missing");
         console.log("[DASHBOARD] Starting first scan...");
 
@@ -447,12 +476,13 @@ export default function Dashboard() {
                 img: "/banner.png",
               },
               {
-                id: "discMissing",
-                title: "Discs",
-                value: data.discMissing,
-                href: `/drilldown/discMissing?libraryId=${library.id}`,
-                img: "/discs.png",
-              },
+                id: "artMissing",
+                title: "Artwork",
+                value: data.artMissing,
+                href: `/drilldown/artMissing?libraryId=${library.id}`,
+                img: "/art.png",
+              }
+
             ].map((tile) => (
               <a
                 key={tile.id}
@@ -484,6 +514,90 @@ export default function Dashboard() {
               </a>
             ))}
           </div>
+
+          {/* =====================================================
+    PHYSICAL MEDIA ASSETS (SPRINT 4C)
+    ===================================================== */}
+<div style={{ marginBottom: 40 }}>
+  <h2 style={{ marginBottom: 12 }}>
+    Physical Media Assets
+  </h2>
+
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns:
+        "repeat(auto-fill, minmax(200px, 1fr))",
+      gap: 16,
+    }}
+  >
+    {[
+      {
+        id: "discMissing",
+        title: "Discs",
+        value: data.discMissing,
+        href: `/drilldown/discMissing?libraryId=${library.id}`,
+        img: "/discs.png",
+      },
+      {
+        id: "boxMissing",
+        title: "Box Covers",
+        value: data.boxMissing,
+        href: `/drilldown/boxMissing?libraryId=${library.id}`,
+        img: "/box.png",
+      },
+      {
+        id: "boxRearMissing",
+        title: "Back Covers",
+        value: data.boxRearMissing,
+        href: `/drilldown/boxRearMissing?libraryId=${library.id}`,
+        img: "/boxrear.png",
+      },
+      {
+        id: "menuMissing",
+        title: "Menus",
+        value: data.menuMissing,
+        href: `/drilldown/menuMissing?libraryId=${library.id}`,
+        img: "/menu.png",
+      },
+    ].map((tile) => (
+      <a
+        key={tile.id}
+        href={tile.href}
+        style={{
+          position: "relative",
+          borderRadius: 12,
+          overflow: "hidden",
+          textDecoration: "none",
+          color: "#fff",
+          height: 150,
+          border: "1px solid #222",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `url(${tile.img})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+
+        <div style={{ position: "relative", padding: 12 }}>
+          <div style={{ fontSize: 14 }}>
+            {tile.title}
+          </div>
+
+          <div style={{ fontSize: 26 }}>
+            {tile.value}
+          </div>
+        </div>
+      </a>
+    ))}
+  </div>
+</div>
+
 
           {/* BACKDROP DISTRIBUTION */}
           <div>
