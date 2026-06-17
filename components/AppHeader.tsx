@@ -9,10 +9,12 @@
  * CHANGE:
  * ---------------------------------------------------------
  * - Replaced hardcoded Home navigation icon with Refresh action
+ * - Added injected refresh handler (non-breaking)
+ * - Removed full page reload anti-pattern
  *
  * REASON:
- * Home navigation is already handled by breadcrumbs system.
- * Refresh is an operational action, not navigation.
+ * Header should not control application lifecycle directly.
+ * Refresh must be delegated to dashboard state system.
  * =========================================================
  */
 
@@ -23,34 +25,43 @@ import type { BreadcrumbItem } from "@/lib/ui/breadcrumbs";
 export default function AppHeader({
   title,
   breadcrumbs,
+  onRefresh,
 }: {
   title: string;
   breadcrumbs?: BreadcrumbItem[];
+  onRefresh?: () => void;
 }) {
   /**
    * =========================================================
-   * REFRESH HANDLER (GLOBAL HEADER ACTION)
+   * REFRESH HANDLER (FALLBACK SAFETY)
    * =========================================================
-   * NOTE:
-   * This intentionally triggers a full page reload.
-   * Can later be replaced with injected callback if needed.
+   * If parent does NOT supply a refresh handler,
+   * we fallback to full reload.
    * =========================================================
    */
   function handleRefresh() {
     console.log("[APPHEADER] Refresh triggered");
+
+    if (onRefresh) {
+      onRefresh();
+      return;
+    }
+
     window.location.reload();
   }
 
   return (
     <div style={{ marginBottom: 18 }}>
+      {/* BREADCRUMBS */}
       {breadcrumbs && breadcrumbs.length > 0 && (
         <Breadcrumbs items={breadcrumbs} />
       )}
 
+      {/* HEADER ROW */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         
         {/* =====================================================
-           REFRESH BUTTON (REPLACES HOME ICON)
+           REFRESH BUTTON
            ===================================================== */}
         <button
           onClick={handleRefresh}
@@ -74,6 +85,7 @@ export default function AppHeader({
           />
         </button>
 
+        {/* TITLE */}
         <h1 style={{ fontSize: 26, margin: 0 }}>{title}</h1>
       </div>
     </div>
