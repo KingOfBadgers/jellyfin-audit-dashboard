@@ -4,11 +4,15 @@
  * =========================================================
  * APP HEADER (SHARED)
  * =========================================================
- * DATE: 2026-06-12
+ * DATE: 2026-06-17
  *
- * PURPOSE:
- * - Unified header for dashboard + drilldown
- * - Optional breadcrumb support
+ * CHANGE:
+ * ---------------------------------------------------------
+ * - Replaced hardcoded Home navigation icon with Refresh action
+ *
+ * REASON:
+ * Home navigation is already handled by breadcrumbs system.
+ * Refresh is an operational action, not navigation.
  * =========================================================
  */
 
@@ -23,6 +27,20 @@ export default function AppHeader({
   title: string;
   breadcrumbs?: BreadcrumbItem[];
 }) {
+  /**
+   * =========================================================
+   * REFRESH HANDLER (GLOBAL HEADER ACTION)
+   * =========================================================
+   * NOTE:
+   * This intentionally triggers a full page reload.
+   * Can later be replaced with injected callback if needed.
+   * =========================================================
+   */
+  function handleRefresh() {
+    console.log("[APPHEADER] Refresh triggered");
+    window.location.reload();
+  }
+
   return (
     <div style={{ marginBottom: 18 }}>
       {breadcrumbs && breadcrumbs.length > 0 && (
@@ -30,22 +48,31 @@ export default function AppHeader({
       )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <a
-          href="/"
+        
+        {/* =====================================================
+           REFRESH BUTTON (REPLACES HOME ICON)
+           ===================================================== */}
+        <button
+          onClick={handleRefresh}
           style={{
-            width: 34,
-            height: 34,
+            width: 56,
+            height: 56,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             borderRadius: 8,
             border: "1px solid #333",
             background: "#111",
-            textDecoration: "none",
+            cursor: "pointer",
+            padding: 0,
           }}
         >
-          <img src="/home.png" alt="Home" style={{ width: 20, height: 20 }} />
-        </a>
+          <img
+            src="/refresh.png"
+            alt="Refresh"
+            style={{ width: 48, height: 48 }}
+          />
+        </button>
 
         <h1 style={{ fontSize: 26, margin: 0 }}>{title}</h1>
       </div>
