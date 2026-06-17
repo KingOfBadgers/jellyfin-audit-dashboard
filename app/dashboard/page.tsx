@@ -178,7 +178,7 @@ console.log({
   menuMissing: cacheJson.menuMissing,
 });
 
-        if (cacheJson.cacheExists !== false) {
+        if (cacheJson.cacheExists !== false && refreshKey === 0) {
           console.log("[DASHBOARD] Cache found");
 
           setData(cacheJson);
@@ -195,8 +195,8 @@ console.log({
           return;
         }
         
-        console.log("[DASHBOARD] Cache missing");
-        console.log("[DASHBOARD] Starting first scan...");
+        console.log("[DASHBOARD] Forcing scan...");
+console.log("[DASHBOARD] refreshKey =", refreshKey);
 
         setStatus("scanning");
 
