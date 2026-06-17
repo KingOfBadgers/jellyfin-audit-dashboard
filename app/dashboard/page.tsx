@@ -76,6 +76,9 @@ export default function Dashboard() {
   const [library, setLibrary] = useState<Library | null>(null);
 
   const [status, setStatus] = useState("initialising");
+  const [refreshKey, setRefreshKey] = useState(0);
+
+console.log("[DASHBOARD RENDER] refreshKey =", refreshKey);
 
   /**
    * =========================================================
@@ -112,7 +115,8 @@ export default function Dashboard() {
    */
   useEffect(() => {
     if (!library?.id) return;
-
+    console.log("[DASHBOARD] EFFECT TRIGGERED");
+    console.log("[DASHBOARD] refreshKey =", refreshKey);
     console.log("[DASHBOARD] Resolving library name...");
 
     fetch("/api/libraries")
@@ -135,7 +139,7 @@ export default function Dashboard() {
       .catch((err) => {
         console.error("[DASHBOARD] Library resolve failed", err);
       });
-  }, [library?.id]);
+  }, [library?.id, refreshKey]);
 
   /**
    * =========================================================
@@ -144,15 +148,18 @@ export default function Dashboard() {
    */
   useEffect(() => {
     if (!library?.id) return;
-
+setUiPhase("loading");
+setStatus("checking-cache");
+setData(null);
     async function loadDashboard() {
+      
       try {
         console.log("[DASHBOARD] Checking cache...");
         setStatus("checking-cache");
         console.log("[DASHBOARD][UI] phase: loading");
 
         const cacheRes = await fetch(
-          `/api/cache?libraryId=${library.id}`
+          `/api/cache?libraryId=${library.id}&refreshKey=${refreshKey}`
         );
 
         const cacheJson = await cacheRes.json();
@@ -209,7 +216,7 @@ console.log({
         setStatus("loading-results");
 
         const newCacheRes = await fetch(
-          `/api/cache?libraryId=${library.id}`
+          `/api/cache?libraryId=${library.id}&refreshKey=${refreshKey}`
         );
 
         const newCacheJson = await newCacheRes.json();
@@ -232,7 +239,7 @@ console.log({
     }
 
     loadDashboard();
-  }, [library?.id]);
+}, [library?.id, refreshKey]);
 
   /**
    * =========================================================
@@ -429,12 +436,13 @@ console.log({
           }}
         >
           <AppHeader
-            title="Jellyfin Audit"
-            breadcrumbs={[
-              { label: "Home", href: "/" },
-              { label: "Dashboard" },
-            ]}
-          />
+          title="Jellyfin Audit"
+          breadcrumbs={[
+            { label: "Home", href: "/" },
+            { label: "Dashboard" },
+          ]}
+          onRefresh={() => setRefreshKey(p => p + 1)}
+        />
 
           {/* PRIMARY GRID */}
           <div
