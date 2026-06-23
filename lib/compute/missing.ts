@@ -56,7 +56,8 @@ export function buildMissingIndex(items: any[]) {
 
     backdropBuckets: {
       "0": 0,
-      "1-5": 0,
+      "1": 0,
+      "2-5": 0,
       "6-10": 0,
       "11-20": 0,
       "20+": 0,
@@ -88,7 +89,8 @@ export function buildMissingIndex(items: any[]) {
     menuMissing: [],
 
     backdrop_0: [],
-    backdrop_1_5: [],
+    backdrop_1: [],
+    backdrop_2_5: [],
     backdrop_6_10: [],
     backdrop_11_20: [],
     backdrop_20_plus: [],
@@ -182,8 +184,9 @@ export function buildMissingIndex(items: any[]) {
       summary.menuMissing++;
       groups.menuMissing.push(item);
     }
+  
 
-    console.log("[MISSING][FULL ITEM STRUCTURE]");
+console.log("[MISSING][FULL ITEM STRUCTURE]");
 
 console.log("ImageTags:", item.ImageTags);
 
@@ -192,28 +195,35 @@ console.log("ImageBlurHashes:", item.ImageBlurHashes);
 console.log("ImagePaths:", item.ImagePaths);
 
 console.log("BackdropImageTags:", item.BackdropImageTags);
-    /**
-     * =====================================================
-     * EXISTING BACKDROP BUCKET LOGIC (UNCHANGED)
-     * =====================================================
-     */
-    if (backdrops === 0) {
-      summary.backdropBuckets["0"]++;
-      groups.backdrop_0.push(item);
-    } else if (backdrops <= 5) {
-      summary.backdropBuckets["1-5"]++;
-      groups.backdrop_1_5.push(item);
-    } else if (backdrops <= 10) {
-      summary.backdropBuckets["6-10"]++;
-      groups.backdrop_6_10.push(item);
-    } else if (backdrops <= 20) {
-      summary.backdropBuckets["11-20"]++;
-      groups.backdrop_11_20.push(item);
-    } else {
-      summary.backdropBuckets["20+"]++;
-      groups.backdrop_20_plus.push(item);
-    }
+
+
+if (backdrops === 0) {
+  summary.backdropBuckets["0"]++;
+  groups.backdrop_0.push(item);
+}
+  else if (backdrops === 1) {
+  summary.backdropBuckets["1"]++;
+  groups.backdrop_1.push(item);
+
+} else if (backdrops >= 2 && backdrops <= 5) {
+  summary.backdropBuckets["2-5"]++; 
+  groups.backdrop_2_5.push(item);
+
+} else if (backdrops >= 6 && backdrops <= 10) {
+  summary.backdropBuckets["6-10"]++;
+  groups.backdrop_6_10.push(item);
+
+} else if (backdrops <= 20) { // Note: Since previous checked <= 10, this effectively means 11-20
+  summary.backdropBuckets["11-20"]++;
+  groups.backdrop_11_20.push(item);
+
+} else {
+  summary.backdropBuckets["20+"]++;
+  groups.backdrop_20_plus.push(item);
+}
   }
+console.log("=== Backdrop Bucket Summary ===");
+console.log(JSON.stringify(summary.backdropBuckets, null, 2));
 
   /**
    * =========================================================
@@ -221,5 +231,6 @@ console.log("BackdropImageTags:", item.BackdropImageTags);
    * =========================================================
    * Existing contract preserved with additional fields.
    */
+
   return { summary, groups };
 }

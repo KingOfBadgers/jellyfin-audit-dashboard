@@ -603,11 +603,18 @@ export default function Dashboard() {
                   img: "/backdrop-0.png",
                 },
                 {
-                  id: "backdrop_1_5",
-                  title: "1–5 Backdrops",
-                  value: data.backdropBuckets?.["1-5"] ?? 0,
-                  href: `/drilldown/backdrop_1_5?libraryId=${library.id}`,
-                  img: "/backdrop1-5.png",
+                  id: "backdrop_1",
+                  title: "1 Backdrops",
+                  value: data.backdropBuckets?.["1"] ?? 0,
+                  href: `/drilldown/backdrop_1?libraryId=${library.id}`,
+                  img: "/backdrop-1.png",
+                },
+                {
+                  id: "backdrop_2_5",
+                  title: "2–5 Backdrops",
+                  value: data.backdropBuckets?.["2-5"] ?? 0,
+                  href: `/drilldown/backdrop_2_5?libraryId=${library.id}`,
+                  img: "/backdrop2-5.png",
                 },
                 {
                   id: "backdrop_6_10",
