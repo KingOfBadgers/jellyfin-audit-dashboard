@@ -3,12 +3,18 @@ version: '3.8'
 services:
   jellyfin-audit:
     image: jellyfin-audit:latest
+    build: .
     container_name: jellyfin-audit-app
+    # Fixes the EACCES volume permission issue dynamically for standard users
+    user: "1000:1000"  
     restart: unless-stopped
     ports:
       - "8098:8098"
     environment:
       - NODE_ENV=production
+      - JELLYFIN_URL=${JELLYFIN_URL}
+      - JELLYFIN_API_KEY=${JELLYFIN_API_KEY}
+      - JELLYFIN_USER_ID=${JELLYFIN_USER_ID}
     volumes:
       - jellyfin_audit_data:/app/data
     logging:
@@ -19,4 +25,3 @@ services:
 
 volumes:
   jellyfin_audit_data:
-      
