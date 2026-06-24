@@ -2,20 +2,24 @@ version: '3.8'
 
 services:
   jellyfin-audit:
-    build: .
-    image: jellyfin-audit:latest
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: jellyfin-audit-app
     restart: unless-stopped
     ports:
       - "8098:8098"
     environment:
       - NODE_ENV=production
+    volumes:
+      - jellyfin_audit_data:/app/data
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    volumes:
-      -  /home/docker/jellyfin-audit/data:/app/data
+
+volumes:
+  jellyfin_audit_data:
   
       
