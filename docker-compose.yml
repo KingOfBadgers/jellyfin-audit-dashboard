@@ -15,7 +15,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-  volumes:
-    -  /home/docker/jellyfin-audit/data:/app/data
+    volumes:
+      -  /home/docker/jellyfin-audit/data:/app/data
   
       
