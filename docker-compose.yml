@@ -19,7 +19,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-volumes:
-  jellyfin_audit_data:
+    
   
       
