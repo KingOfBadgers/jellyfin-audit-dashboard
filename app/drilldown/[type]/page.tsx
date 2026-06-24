@@ -35,7 +35,14 @@ type MovieItem = {
   title: string;
 };
 
-export default function DrilldownPage({ params }: any) {
+// 1. Define the type for your URL params
+type DrilldownParams = Promise<{
+  type: string;
+}>;
+
+// 2. Type the function props explicitly
+export default function DrilldownPage({ params }: { params: DrilldownParams }) {
+  // TypeScript now knows resolvedParams is { type: string }
   const resolvedParams = use(params);
 
   const [items, setItems] = useState<MovieItem[]>([]);
