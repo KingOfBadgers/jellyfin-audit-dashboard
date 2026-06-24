@@ -2,9 +2,7 @@ version: '3.8'
 
 services:
   jellyfin-audit:
-    build: 
-      context: .
-      dockerfile: Dockerfile
+    image: jellyfin-audit:latest
     container_name: jellyfin-audit-app
     restart: unless-stopped
     ports:
@@ -19,6 +17,6 @@ services:
         max-size: "10m"
         max-file: "3"
 
-    
-  
+volumes:
+  jellyfin_audit_data:
       
