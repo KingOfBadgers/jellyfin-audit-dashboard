@@ -241,20 +241,34 @@ export default function DrilldownPage({ params }: any) {
               {row.map((movie) => {
                 const imageUrl = buildPrimaryImageUrl(movie.id);
 
+                  /**
+                   * CHANGE:
+                   * - Replaced placeholder href="#" with Jellyfin deep link per movie.id
+                   *
+                   * DATE: 2026-06-22
+                   * TIME: 00:00
+                   *
+                   * REASON:
+                   * Enable direct navigation from drilldown cards into Jellyfin item pages
+                   * without altering cache, layout, or drilldown structure.
+                   */
+
                 return (
                   <a
-                    key={movie.id}
-                    href="#"
-                    style={{
-                      minWidth: 140,
-                      height: 210,
-                      position: "relative",
-                      borderRadius: 10,
-                      overflow: "hidden",
-                      flex: "0 0 auto",
-                      background: "#1a1a22",
-                    }}
-                  >
+                      key={movie.id}
+                      href={`${process.env.NEXT_PUBLIC_JELLYFIN_URL || ""}/web/index.html#!/details?id=${movie.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        minWidth: 140,
+                        height: 210,
+                        position: "relative",
+                        borderRadius: 10,
+                        overflow: "hidden",
+                        flex: "0 0 auto",
+                        background: "#1a1a22",
+                      }}
+                    >
                     <div
                       style={{
                         position: "absolute",

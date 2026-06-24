@@ -37,7 +37,7 @@
  */
 
 import AppHeader from "@/components/AppHeader";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 type CacheData = {
   /**
@@ -78,7 +78,7 @@ export default function Dashboard() {
   const [status, setStatus] = useState("initialising");
   const [refreshKey, setRefreshKey] = useState(0);
 
-console.log("[DASHBOARD RENDER] refreshKey =", refreshKey);
+  console.log("[DASHBOARD RENDER] refreshKey =", refreshKey);
 
   /**
    * =========================================================
@@ -146,109 +146,66 @@ console.log("[DASHBOARD RENDER] refreshKey =", refreshKey);
    * CACHE + AUTO BOOTSTRAP
    * =========================================================
    */
-  useEffect(() => {
+  const loadDashboard = useCallback(async (forceRefresh = false) => {
     if (!library?.id) return;
-setUiPhase("loading");
-setStatus("checking-cache");
-setData(null);
-    async function loadDashboard() {
-      
-      try {
-        console.log("[DASHBOARD] Checking cache...");
-        setStatus("checking-cache");
-        console.log("[DASHBOARD][UI] phase: loading");
 
-        const cacheRes = await fetch(
-          `/api/cache?libraryId=${library.id}&refreshKey=${refreshKey}`
-        );
+    setUiPhase("loading");
+    setStatus("checking-cache");
+    setData(null);
 
-        const cacheJson = await cacheRes.json();
-        
-        /**
- * =========================================================
- * SPRINT 4B DEBUG
- * Verify new asset fields reached dashboard
- * =========================================================
- */
-console.log("[DASHBOARD][SPRINT4] Full cache payload:");
-console.log({
-  artMissing: cacheJson.artMissing,
-  boxMissing: cacheJson.boxMissing,
-  boxRearMissing: cacheJson.boxRearMissing,
-  menuMissing: cacheJson.menuMissing,
-});
+    const cacheRes = await fetch(
+      `/api/cache?libraryId=${library.id}&refreshKey=${refreshKey}`
+    );
 
-        if (cacheJson.cacheExists !== false && refreshKey === 0) {
-          console.log("[DASHBOARD] Cache found");
+    const cacheJson = await cacheRes.json();
 
-          setData(cacheJson);
-          setStatus("ready");
+    if (!forceRefresh && cacheJson.cacheExists !== false) {
+      setData(cacheJson);
 
-          console.log("[DASHBOARD][UI] phase: transition");
-          setUiPhase("transition");
-
-          setTimeout(() => {
-            console.log("[DASHBOARD][UI] phase: ready");
-            setUiPhase("ready");
-          }, 700);
-          
-          return;
-        }
-        
-        console.log("[DASHBOARD] Forcing scan...");
-console.log("[DASHBOARD] refreshKey =", refreshKey);
-
-        setStatus("scanning");
-
-        const scanRes = await fetch("/api/scan", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            libraryId: library.id,
-          }),
-        });
-
-        await scanRes.json();
-
-        console.log("[DASHBOARD] Reloading cache...");
-        setStatus("loading-results");
-
-        const newCacheRes = await fetch(
-          `/api/cache?libraryId=${library.id}&refreshKey=${refreshKey}`
-        );
-
-        const newCacheJson = await newCacheRes.json();
-
-        setData(newCacheJson);
-        setStatus("ready");
-
-        console.log("[DASHBOARD][UI] phase: transition");
-        setUiPhase("transition");
-
-        setTimeout(() => {
-          console.log("[DASHBOARD][UI] phase: ready");
-          setUiPhase("ready");
-        }, 700);
-
-        console.log("[DASHBOARD] Dashboard ready");
-      } catch (err) {
-        console.error("[DASHBOARD][BOOT] Bootstrap failed", err);
-      }
+      setUiPhase("transition");
+      setTimeout(() => setUiPhase("ready"), 700);
+      return;
     }
 
-    loadDashboard();
-}, [library?.id, refreshKey]);
+    setStatus("scanning");
+
+    await fetch("/api/scan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ libraryId: library.id }),
+    });
+
+    const newCacheRes = await fetch(
+      `/api/cache?libraryId=${library.id}&refreshKey=${refreshKey}`
+    );
+
+    const newCacheJson = await newCacheRes.json();
+
+    setData(newCacheJson);
+
+    setUiPhase("transition");
+    setTimeout(() => setUiPhase("ready"), 700);
+  }, [library?.id, refreshKey]);
+
+  useEffect(() => {
+    if (!library?.id) return;
+    loadDashboard(false);
+  }, [library?.id]);
+
+  useEffect(() => {
+    if (!library?.id) return;
+    if (refreshKey === 0) return;
+
+    loadDashboard(true);
+  }, [refreshKey]);
 
   /**
    * =========================================================
    * SPRINT 3: SKELETON HELPERS
    * =========================================================
    */
-
   const showSkeleton =
-    !data || uiPhase === "boot" || uiPhase === "loading";
+  !data && uiPhase !== "transition";
 
   function renderSkeletonTile(key: string) {
     return (
@@ -291,15 +248,33 @@ console.log("[DASHBOARD] refreshKey =", refreshKey);
       : 0;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        position: "relative",
-        overflow: "hidden",
-        fontFamily: "sans-serif",
-        background: "#0b0b0f",
-      }}
-    >
+  <div
+    style={{
+      minHeight: "100vh",
+      position: "relative",
+      overflow: "hidden",
+      fontFamily: "sans-serif",
+      background: "#0b0b0f",
+    }}
+  >
+
+    {/* HEADER — ALWAYS ON TOP */}
+    <div style={{ position: "relative", zIndex: 9999 }}>
+      <AppHeader
+        title="Jellyfin Audit"
+        breadcrumbs={[
+          { label: "Home", href: "/" },
+          { label: "Dashboard" },
+        ]}
+        onRefresh={() => setRefreshKey(p => p + 1)}
+      />
+    </div>
+
+
+    {/* EVERYTHING ELSE BELOW THIS */}
+
+
+      
       {/* =====================================================
           SHIMMER KEYFRAMES (SPRINT 3)
           ===================================================== */}
@@ -358,42 +333,53 @@ console.log("[DASHBOARD] refreshKey =", refreshKey);
           pointerEvents: "none",
         }}
       />
-
+      
+      
       {/* =====================================================
-          SKELETON LAYER (SPRINT 3)
-          ===================================================== */}
-      {showSkeleton && (
-        <div
-          style={{
-            position: "relative",
-            zIndex: 2,
-            padding: 24,
-          }}
-        >
-          {/* PRIMARY GRID SKELETON */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-              gap: 16,
-              marginBottom: 40,
-            }}
-          >
-            {renderSkeletonGrid(5, "primary")}
-          </div>
+      SKELETON LAYER (SPRINT 3)
+      ===================================================== */}
+      <div
+  style={{
+    padding: 24,
+    paddingTop: 0,
+    position: "relative",
+    zIndex: 2,
+  }}
+>
+        {/* SKELETON LAYER */}
+        {showSkeleton && (
+  <div
+    style={{
+      padding: 0,
+      position: "relative",
+      zIndex: 2,
+    }}
+  >
+            {/* PRIMARY GRID SKELETON */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                gap: 16,
+                marginBottom: 40,
+              }}
+            >
+              {renderSkeletonGrid(5, "primary")}
+            </div>
 
-          {/* BACKDROP GRID SKELETON */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-              gap: 12,
-            }}
-          >
-            {renderSkeletonGrid(5, "backdrop")}
+            {/* BACKDROP GRID SKELETON */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                gap: 12,
+              }}
+            >
+              {renderSkeletonGrid(5, "backdrop")}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* =====================================================
           LOADING SCREEN (SPRINT 2)
@@ -435,15 +421,6 @@ console.log("[DASHBOARD] refreshKey =", refreshKey);
             transition: "all 800ms ease",
           }}
         >
-          <AppHeader
-          title="Jellyfin Audit"
-          breadcrumbs={[
-            { label: "Home", href: "/" },
-            { label: "Dashboard" },
-          ]}
-          onRefresh={() => setRefreshKey(p => p + 1)}
-        />
-
           {/* PRIMARY GRID */}
           <div
             style={{
@@ -490,7 +467,6 @@ console.log("[DASHBOARD] refreshKey =", refreshKey);
                 href: `/drilldown/artMissing?libraryId=${library.id}`,
                 img: "/art.png",
               }
-
             ].map((tile) => (
               <a
                 key={tile.id}
@@ -524,88 +500,87 @@ console.log("[DASHBOARD] refreshKey =", refreshKey);
           </div>
 
           {/* =====================================================
-    PHYSICAL MEDIA ASSETS (SPRINT 4C)
-    ===================================================== */}
-<div style={{ marginBottom: 40 }}>
-  <h2 style={{ marginBottom: 12 }}>
-    Physical Media Assets
-  </h2>
+              PHYSICAL MEDIA ASSETS (SPRINT 4C)
+              ===================================================== */}
+          <div style={{ marginBottom: 40 }}>
+            <h2 style={{ marginBottom: 12 }}>
+              Physical Media Assets
+            </h2>
 
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns:
-        "repeat(auto-fill, minmax(200px, 1fr))",
-      gap: 16,
-    }}
-  >
-    {[
-      {
-        id: "discMissing",
-        title: "Discs",
-        value: data.discMissing,
-        href: `/drilldown/discMissing?libraryId=${library.id}`,
-        img: "/discs.png",
-      },
-      {
-        id: "boxMissing",
-        title: "Box Covers",
-        value: data.boxMissing,
-        href: `/drilldown/boxMissing?libraryId=${library.id}`,
-        img: "/box.png",
-      },
-      {
-        id: "boxRearMissing",
-        title: "Back Covers",
-        value: data.boxRearMissing,
-        href: `/drilldown/boxRearMissing?libraryId=${library.id}`,
-        img: "/boxrear.png",
-      },
-      {
-        id: "menuMissing",
-        title: "Menus",
-        value: data.menuMissing,
-        href: `/drilldown/menuMissing?libraryId=${library.id}`,
-        img: "/menu.png",
-      },
-    ].map((tile) => (
-      <a
-        key={tile.id}
-        href={tile.href}
-        style={{
-          position: "relative",
-          borderRadius: 12,
-          overflow: "hidden",
-          textDecoration: "none",
-          color: "#fff",
-          height: 150,
-          border: "1px solid #222",
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            backgroundImage: `url(${tile.img})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "repeat(auto-fill, minmax(200px, 1fr))",
+                gap: 16,
+              }}
+            >
+              {[
+                {
+                  id: "discMissing",
+                  title: "Discs",
+                  value: data.discMissing,
+                  href: `/drilldown/discMissing?libraryId=${library.id}`,
+                  img: "/discs.png",
+                },
+                {
+                  id: "boxMissing",
+                  title: "Box Covers",
+                  value: data.boxMissing,
+                  href: `/drilldown/boxMissing?libraryId=${library.id}`,
+                  img: "/box.png",
+                },
+                {
+                  id: "boxRearMissing",
+                  title: "Back Covers",
+                  value: data.boxRearMissing,
+                  href: `/drilldown/boxRearMissing?libraryId=${library.id}`,
+                  img: "/boxrear.png",
+                },
+                {
+                  id: "menuMissing",
+                  title: "Menus",
+                  value: data.menuMissing,
+                  href: `/drilldown/menuMissing?libraryId=${library.id}`,
+                  img: "/menu.png",
+                },
+              ].map((tile) => (
+                <a
+                  key={tile.id}
+                  href={tile.href}
+                  style={{
+                    position: "relative",
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    textDecoration: "none",
+                    color: "#fff",
+                    height: 150,
+                    border: "1px solid #222",
+                  }}
+                >
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      backgroundImage: `url(${tile.img})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }}
+                  />
 
-        <div style={{ position: "relative", padding: 12 }}>
-          <div style={{ fontSize: 14 }}>
-            {tile.title}
+                  <div style={{ position: "relative", padding: 12 }}>
+                    <div style={{ fontSize: 14 }}>
+                      {tile.title}
+                    </div>
+
+                    <div style={{ fontSize: 26 }}>
+                      {tile.value}
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
           </div>
-
-          <div style={{ fontSize: 26 }}>
-            {tile.value}
-          </div>
-        </div>
-      </a>
-    ))}
-  </div>
-</div>
-
 
           {/* BACKDROP DISTRIBUTION */}
           <div>
@@ -628,11 +603,18 @@ console.log("[DASHBOARD] refreshKey =", refreshKey);
                   img: "/backdrop-0.png",
                 },
                 {
-                  id: "backdrop_1_5",
-                  title: "1–5 Backdrops",
-                  value: data.backdropBuckets?.["1-5"] ?? 0,
-                  href: `/drilldown/backdrop_1_5?libraryId=${library.id}`,
-                  img: "/backdrop1-5.png",
+                  id: "backdrop_1",
+                  title: "1 Backdrops",
+                  value: data.backdropBuckets?.["1"] ?? 0,
+                  href: `/drilldown/backdrop_1?libraryId=${library.id}`,
+                  img: "/backdrop-1.png",
+                },
+                {
+                  id: "backdrop_2_5",
+                  title: "2–5 Backdrops",
+                  value: data.backdropBuckets?.["2-5"] ?? 0,
+                  href: `/drilldown/backdrop_2_5?libraryId=${library.id}`,
+                  img: "/backdrop2-5.png",
                 },
                 {
                   id: "backdrop_6_10",

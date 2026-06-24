@@ -1,9 +1,13 @@
-version: "3.8"
+version: '3.8'
 
 services:
   jellyfin-audit:
     build: .
+    image: jellyfin-audit:latest
+    container_name: jellyfin-audit-app
+    restart: unless-stopped
     ports:
+<<<<<<< HEAD
       - "8098:3000"
     worker:
   build: .
@@ -13,5 +17,17 @@ services:
     - JELLYFIN_API_KEY=your_key
     - JELLYFIN_USER_ID=your_user
 
+=======
+      - "8098:8098"
+    environment:
+      - NODE_ENV=production
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+  volumes:
+    - ./data:/app/data
+>>>>>>> c27ad4b81c8614a1687236071d6dbf5a69173988
   
       
