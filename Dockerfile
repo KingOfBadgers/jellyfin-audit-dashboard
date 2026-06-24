@@ -32,6 +32,14 @@ COPY --from=builder /app/package.json ./package.json
 # Switch to the non-root user
 USER nextjs
 
+# 1. Copy public assets to the main app folder
+COPY --from=builder /app/public ./public
+
+# 2. Copy public assets into the static standalone folder 
+# This is what prevents Next.js from throwing text/html errors on image routes!
+COPY --from=builder /app/.next/standalone/public ./.next/standalone/public
+COPY --from=builder /app/.next/static ./.next/standalone/.next/static
+
 # Expose the port your app is configured to use
 EXPOSE 8098
 
