@@ -36,8 +36,8 @@ USER nextjs
 COPY --from=builder /app/public ./public
 
 # 2. Copy public assets into the static standalone folder 
-# This is what prevents Next.js from throwing text/html errors on image routes!
-COPY --from=builder /app/.next/standalone/public ./.next/standalone/public
+# This copies from your workspace root into the destination standalone public folder
+COPY --from=builder /app/public ./.next/standalone/public
 COPY --from=builder /app/.next/static ./.next/standalone/.next/static
 
 # Expose the port your app is configured to use
