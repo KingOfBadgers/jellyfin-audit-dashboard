@@ -119,9 +119,24 @@ export default function DrilldownPage({ params }: { params: DrilldownParams }) {
    * VIEW MODEL (SINGLE SOURCE OF TRUTH)
    * =========================================================
    */
-  const sectionLabel = useMemo(() => {
-    return formatDrilldownLabel(resolvedParams.type);
-  }, [resolvedParams.type]);
+  /**
+ * =========================================================
+ * FIX: NORMALISE URL-ENCODED DRILLDOWN TYPE
+ * DATE: 2026-06-23
+ * TIME: 00:00
+ *
+ * REASON:
+ * Next.js route param preserves encoded characters
+ * (e.g. %2B) which leaks into UI labels and breadcrumbs.
+ *
+ * FIX:
+ * Decode before passing into UI label system.
+ * =========================================================
+ */
+const sectionLabel = useMemo(() => {
+  const rawType = decodeURIComponent(resolvedParams.type);
+  return formatDrilldownLabel(rawType);
+}, [resolvedParams.type]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
