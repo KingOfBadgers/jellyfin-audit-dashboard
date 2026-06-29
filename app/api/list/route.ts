@@ -32,6 +32,7 @@ import { readAuditGroups } from "@/lib/cache/auditCache";
  * =========================================================
  */
 
+
 /**
  * =========================================================
  * VALID DRILLDOWN TYPES
@@ -56,10 +57,11 @@ const VALID_KEYS = new Set([
 
   // BACKDROPS
   "backdrop_0",
-  "backdrop_1_5",
-  "backdrop_6_10",
-  "backdrop_11_20",
-  "backdrop_20_plus",
+  "backdrop_1",
+  "backdrop_2-5",
+  "backdrop_6-10",
+  "backdrop_11-20",
+  "backdrop_20+",
 ]);
 
 export async function GET(req: Request) {

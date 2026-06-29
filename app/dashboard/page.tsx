@@ -38,6 +38,7 @@
 
 import AppHeader from "@/components/AppHeader";
 import { useEffect, useState, useCallback } from "react";
+import { BACKDROP_BUCKETS } from "@/lib/constants/backdropBuckets";
 
 type CacheData = {
   /**
@@ -60,7 +61,29 @@ type CacheData = {
   /**
    * BACKDROPS
    */
+  
+
+
   backdropBuckets?: Record<string, number>;
+};
+
+const getBackdropLabel = (key: string) => {
+  switch (key) {
+    case "0":
+      return "0 Backdrops";
+    case "1":
+      return "1 Backdrop";
+    case "2-5":
+      return "2–5 Backdrops";
+    case "6-10":
+      return "6–10 Backdrops";
+    case "11-20":
+      return "11–20 Backdrops";
+    case "20+":
+      return "20+ Backdrops";
+    default:
+      return key;
+  }
 };
 
 type Library = {
@@ -583,96 +606,58 @@ export default function Dashboard() {
           </div>
 
           {/* BACKDROP DISTRIBUTION */}
-          <div>
-            <h2 style={{ marginBottom: 12 }}>Backdrop Distribution</h2>
+<div>
+  <h2 style={{ marginBottom: 12 }}>Backdrop Distribution</h2>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fill, minmax(180px, 1fr))",
-                gap: 12,
-              }}
-            >
-              {[
-                {
-                  id: "backdrop_0",
-                  title: "0 Backdrops",
-                  value: data.backdropBuckets?.["0"] ?? 0,
-                  href: `/drilldown/backdrop_0?libraryId=${library.id}`,
-                  img: "/backdrop-0.png",
-                },
-                {
-                  id: "backdrop_1",
-                  title: "1 Backdrops",
-                  value: data.backdropBuckets?.["1"] ?? 0,
-                  href: `/drilldown/backdrop_1?libraryId=${library.id}`,
-                  img: "/backdrop-1.png",
-                },
-                {
-                  id: "backdrop_2_5",
-                  title: "2–5 Backdrops",
-                  value: data.backdropBuckets?.["2-5"] ?? 0,
-                  href: `/drilldown/backdrop_2_5?libraryId=${library.id}`,
-                  img: "/backdrop2-5.png",
-                },
-                {
-                  id: "backdrop_6_10",
-                  title: "6–10 Backdrops",
-                  value: data.backdropBuckets?.["6-10"] ?? 0,
-                  href: `/drilldown/backdrop_6_10?libraryId=${library.id}`,
-                  img: "/backdrop_6_10.png",
-                },
-                {
-                  id: "backdrop_11_20",
-                  title: "11–20 Backdrops",
-                  value: data.backdropBuckets?.["11-20"] ?? 0,
-                  href: `/drilldown/backdrop_11_20?libraryId=${library.id}`,
-                  img: "/backdrop_11_20.png",
-                },
-                {
-                  id: "backdrop_20_plus",
-                  title: "20+ Backdrops",
-                  value: data.backdropBuckets?.["20+"] ?? 0,
-                  href: `/drilldown/backdrop_20_plus?libraryId=${library.id}`,
-                  img: "/backdrop_20_plus.png",
-                },
-              ].map((tile) => (
-                <a
-                  key={tile.id}
-                  href={tile.href}
-                  style={{
-                    position: "relative",
-                    overflow: "hidden",
-                    borderRadius: 10,
-                    textDecoration: "none",
-                    color: "#fff",
-                    border: "1px solid #222",
-                    padding: 14,
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      backgroundImage: `url(${tile.img})`,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                      opacity: 0.35,
-                    }}
-                  />
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+      gap: 12,
+    }}
+  >
+    {BACKDROP_BUCKETS.map((key) => (
+      <a
+        key={key}
+        href={`/drilldown/backdrop_${encodeURIComponent(key)}?libraryId=${library.id}`}
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: 10,
+          textDecoration: "none",
+          color: "#fff",
+          border: "1px solid #222",
+          padding: 14,
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `url(/backdrop-${encodeURIComponent(key)}.png)`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            opacity: 0.35,
+          }}
+        />
 
-                  <div style={{ position: "relative" }}>
-                    <div style={{ fontSize: 12, opacity: 0.6 }}>
-                      BACKDROPS
-                    </div>
-                    <div style={{ fontSize: 14 }}>{tile.title}</div>
-                    <div style={{ fontSize: 22 }}>{tile.value}</div>
-                  </div>
-                </a>
-              ))}
-            </div>
+        <div style={{ position: "relative" }}>
+          <div style={{ fontSize: 12, opacity: 0.6 }}>
+            BACKDROPS
           </div>
+
+          <div style={{ fontSize: 14 }}>
+            {getBackdropLabel(key)}
+          </div>
+
+          <div style={{ fontSize: 22 }}>
+            {data.backdropBuckets?.[key] ?? 0}
+          </div>
+        </div>
+      </a>
+    ))}
+  </div>
+</div>
         </div>
       )}
     </div>
