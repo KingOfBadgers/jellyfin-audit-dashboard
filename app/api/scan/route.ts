@@ -23,7 +23,13 @@ async function resolveLibraryTypeFromId(
 ): Promise<LibraryType> {
   const res = await fetch(`${baseUrl}/Users/${userId}/Views`, {
     headers: {
-      "X-Emby-Token": apiKey,
+      "Authorization": (
+        `MediaBrowser Client="jellyfin-audit", ` +
+        `Device="jellyfin-audit", ` +
+        `DeviceId="jellyfin-audit", ` +
+        `Version="1.0", ` +
+        `Token="${apiKey}"`
+      ),
       "Content-Type": "application/json",
     },
   });
@@ -143,7 +149,13 @@ export async function GET(req: Request) {
 
   const res = await fetch(url, {
     headers: {
-      "X-Emby-Token": apiKey,
+      "Authorization": (
+        `MediaBrowser Client="jellyfin-audit", ` +
+        `Device="jellyfin-audit", ` +
+        `DeviceId="jellyfin-audit", ` +
+        `Version="1.0", ` +
+        `Token="${apiKey}"`
+      ),
       "Content-Type": "application/json",
     },
   });
@@ -223,7 +235,13 @@ export async function POST(req: Request) {
 
     const res = await fetch(url, {
       headers: {
-        "X-Emby-Token": apiKey,
+        "Authorization": (
+        `MediaBrowser Client="jellyfin-audit", ` +
+        `Device="jellyfin-audit", ` +
+        `DeviceId="jellyfin-audit", ` +
+        `Version="1.0", ` +
+        `Token="${apiKey}"`
+      ),
         "Content-Type": "application/json",
       },
     });

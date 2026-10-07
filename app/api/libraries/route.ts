@@ -57,7 +57,13 @@ export async function GET() {
       `${baseUrl}/Users/${userId}/Views`,
       {
         headers: {
-          "X-Emby-Token": apiKey,
+          "Authorization": (
+        `MediaBrowser Client="jellyfin-audit", ` +
+        `Device="jellyfin-audit", ` +
+        `DeviceId="jellyfin-audit", ` +
+        `Version="1.0", ` +
+        `Token="${apiKey}"`
+      ),
           "Content-Type": "application/json",
         },
       }

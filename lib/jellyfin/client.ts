@@ -11,7 +11,13 @@ export class JellyfinClient {
    */
   private headers() {
     return {
-      "X-Emby-Token": this.apiKey,
+      "Authorization": (
+        `MediaBrowser Client="jellyfin-audit", ` +
+        `Device="jellyfin-audit", ` +
+        `DeviceId="jellyfin-audit", ` +
+        `Version="1.0", ` +
+        `Token="${this.apiKey}"`
+      ),
       "Content-Type": "application/json",
     };
   }
