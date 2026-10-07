@@ -278,7 +278,7 @@ const sectionLabel = useMemo(() => {
                 return (
                   <a
                       key={movie.id}
-                      href={`${process.env.NEXT_PUBLIC_JELLYFIN_URL || ""}/web/index.html#!/details?id=${movie.id}`}
+                      href={`${process.env.NEXT_PUBLIC_JELLYFIN_URL || ""}/web/#/details?id=${movie.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{

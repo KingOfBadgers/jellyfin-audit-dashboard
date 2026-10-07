@@ -7,6 +7,8 @@ RUN npm ci
 
 # --- STAGE 2: Build the application ---
 FROM node:20-alpine AS builder
+ARG NEXT_PUBLIC_JELLYFIN_URL
+ENV NEXT_PUBLIC_JELLYFIN_URL=$NEXT_PUBLIC_JELLYFIN_URL
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

@@ -3,7 +3,10 @@ version: '3.8'
 services:
   jellyfin-audit:
     image: jellyfin-audit:latest
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_JELLYFIN_URL: http://192.168.0.52:8096
     container_name: jellyfin-audit-app
     # Fixes the EACCES volume permission issue dynamically for standard users
     user: "1000:1000"  
