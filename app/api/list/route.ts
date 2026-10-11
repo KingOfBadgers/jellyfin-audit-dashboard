@@ -162,6 +162,7 @@ export async function GET(req: Request) {
   const items = raw.map((i: any) => ({
     id: i.Id,
     title: i.Name,
+    path: i.Path,
     backdropCount: i.BackdropImageTags?.length ?? 0,
   }));
 

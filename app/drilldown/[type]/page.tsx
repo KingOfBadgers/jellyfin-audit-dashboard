@@ -33,7 +33,30 @@ import Breadcrumbs from "@/components/Breadcrumbs"; // (assuming existing)
 type MovieItem = {
   id: string;
   title: string;
+  path?: string;
 };
+
+function getSourceLabel(path?: string): string {
+  if (!path) return "Source unavailable";
+
+  const sources: [string, string][] = [
+    ["/data/Library9", "tNAS5 / Library9 / Movies"],
+    ["/data/Library8", "tNAS / Library8 / Anime"],
+    ["/data/Library7", "tNAS2 / Library7 / Foreign"],
+    ["/data/Library6", "tNAS4 / Library6 / Classics"],
+    ["/data/Library5", "tNAS3 / Library3 / NoTMDB"],
+    ["/data/Library4", "tNAS4 / Library4 / Movies"],
+    ["/data/Library3", "tNAS3 / Library3 / Movies"],
+    ["/data/Library2", "tNAS2 / Library2 / Movies"],
+    ["/data/Library", "tNAS / Library / Movies"],
+  ];
+
+  const source = sources.find(
+    ([root]) => path === root || path.startsWith(root + "/")
+  );
+
+  return source ? source[1] : path;
+}
 
 // 1. Define the type for your URL params
 type DrilldownParams = Promise<{
@@ -316,10 +339,16 @@ const sectionLabel = useMemo(() => {
                         bottom: 0,
                         padding: 8,
                         fontSize: 11,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
                       }}
                     >
-                      {movie.title}
-                    </div>
+                      <div>{movie.title}</div>
+                      <div style={{ opacity: 0.75, fontSize: 10 }}>
+                        {getSourceLabel(movie.path)}
+                      </div>
+</div>
                   </a>
                 );
               })}

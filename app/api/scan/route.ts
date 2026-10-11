@@ -106,7 +106,7 @@ function buildQuery(
 
   params.set("Recursive", "true");
   params.set("ParentId", libraryId);
-
+  params.set("Fields", "Path");
   return `${base}?${params.toString()}`;
 }
 
