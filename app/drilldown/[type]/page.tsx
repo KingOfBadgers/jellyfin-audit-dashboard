@@ -316,9 +316,16 @@ const sectionLabel = useMemo(() => {
                         bottom: 0,
                         padding: 8,
                         fontSize: 11,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
                       }}
                     >
-                      {movie.title}
+                      <div>{movie.title}</div>
+
+                      <div style={{ opacity: 0.75, fontSize: 10 }}>
+                        Library {libraryId}
+                      </div>
                     </div>
                   </a>
                 );

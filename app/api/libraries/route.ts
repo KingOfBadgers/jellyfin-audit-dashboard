@@ -1,6 +1,3 @@
-import { NextResponse } from "next/server";
-import { JellyfinClient } from "@/lib/jellyfin/client";
-
 /**
  * =========================================================
  * LIBRARY DISCOVERY API (SCAN-AWARE CONTRACT V2)
@@ -14,6 +11,8 @@ import { JellyfinClient } from "@/lib/jellyfin/client";
  * KEY CHANGE:
  * - Added "scanType" field = direct scan instruction
  */
+
+import { NextResponse } from "next/server";
 
 type LibraryType = "movie" | "tv" | "collection" | "unknown";
 
@@ -57,7 +56,7 @@ export async function GET() {
       `${baseUrl}/Users/${userId}/Views`,
       {
         headers: {
-          "X-Emby-Token": apiKey,
+          "Authorization": `MediaBrowser Client="jellyfin-audit", Device="jellyfin-audit", DeviceId="jellyfin-audit", Version="1.0", Token="${apiKey}"`,
           "Content-Type": "application/json",
         },
       }
